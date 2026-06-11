@@ -1,1135 +1,915 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="الكوفي">
-<title>☕ سجل الكوفي</title>
+=import { useState, useEffect } from "react";
+import { Coffee, Home, ClipboardList, Store, Plus, Edit2, Trash2, X, Mail, MailX, TrendingUp, AlertCircle, Cloud, CheckCircle } from "lucide-react";
 
-<!-- ══════════════════════════════════════════
-     🔥 FIREBASE CONFIG
-     1. روح https://console.firebase.google.com
-     2. أنشئ مشروع جديد
-     3. Project Settings → Your Apps → Web App
-     4. انسخ الـ config وضعه هنا
-     ══════════════════════════════════════════ -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-  // ▼▼▼ ضع config الخاص بك هنا ▼▼▼
-  const firebaseConfig = {
-    apiKey: "REPLACE_API_KEY",
-    authDomain: "REPLACE_AUTH_DOMAIN",
-    projectId: "REPLACE_PROJECT_ID",
-    storageBucket: "REPLACE_STORAGE_BUCKET",
-    messagingSenderId: "REPLACE_SENDER_ID",
-    appId: "REPLACE_APP_ID"
-  };
-  // ▲▲▲ ضع config الخاص بك هنا ▲▲▲
-
-  let db = null;
-  let firebaseReady = false;
-
-  try {
-    const app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    firebaseReady = true;
-  } catch(e) {
-    console.warn("Firebase not configured, using localStorage only.");
-  }
-
-  // Expose to global scope
-  window._firebase = { db, firebaseReady, doc, setDoc, getDoc, collection, getDocs, deleteDoc };
-</script>
-
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
-:root {
-  --brown-dark: #2C1A0E;
-  --brown-mid: #6F3D0F;
-  --brown-light: #C8956C;
-  --cream: #FFF8F0;
-  --cream2: #F5EDE0;
-  --red: #D32F2F;
-  --red-bg: #FFEBEE;
-  --yellow: #F59F00;
-  --yellow-bg: #FFF9C4;
-  --green: #2E7D32;
-  --green-bg: #E8F5E9;
-  --white: #FFFFFF;
-  --blue: #1565C0;
-  --blue-bg: #E3F2FD;
-}
-
-body {
-  font-family: -apple-system, 'SF Pro Text', Arial, sans-serif;
-  background: var(--cream2);
-  color: var(--brown-dark);
-  min-height: 100vh;
-  padding-bottom: 40px;
-}
-
-/* ── HEADER ── */
-.app-header {
-  background: var(--brown-dark);
-  color: white;
-  padding: 14px 16px 10px;
-  position: sticky;
-  top: 0;
-  z-index: 200;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.app-header h1 { font-size: 20px; font-weight: 700; }
-.app-header .subtitle { font-size: 11px; color: var(--brown-light); margin-top: 2px; }
-.settings-icon-btn {
-  width: 40px; height: 40px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.1);
-  color: white;
-  font-size: 20px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-}
-
-/* ── SYNC STATUS ── */
-.sync-bar {
-  background: var(--brown-mid);
-  color: rgba(255,255,255,0.85);
-  font-size: 11px;
-  padding: 4px 16px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.sync-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: #aaa;
-  flex-shrink: 0;
-}
-.sync-dot.ok { background: #69f0ae; }
-.sync-dot.err { background: #ff5252; }
-.sync-dot.syncing { background: var(--yellow); animation: pulse 1s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-/* ── BRANCH TABS ── */
-.tabs-wrap {
-  background: var(--brown-mid);
-  border-bottom: 2px solid var(--brown-light);
-  display: flex;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.tabs-wrap::-webkit-scrollbar { display: none; }
-.tab {
-  flex-shrink: 0;
-  padding: 12px 16px;
-  text-align: center;
-  color: rgba(255,255,255,0.55);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  background: none;
-  white-space: nowrap;
-}
-.tab.active {
-  color: white;
-  background: rgba(255,255,255,0.15);
-  border-bottom: 2px solid var(--brown-light);
-  margin-bottom: -2px;
-}
-
-/* ── MONTH NAV ── */
-.month-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  background: var(--cream);
-  border-bottom: 1px solid var(--brown-light);
-}
-.month-nav button {
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  border: 1.5px solid var(--brown-light);
-  background: white;
-  color: var(--brown-mid);
-  font-size: 18px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-}
-.month-label { font-size: 15px; font-weight: 700; color: var(--brown-dark); }
-
-/* ── LEGEND ── */
-.legend {
-  display: flex;
-  gap: 12px;
-  padding: 8px 16px;
-  background: var(--cream);
-  border-bottom: 1px solid #e0cdb8;
-  flex-wrap: wrap;
-}
-.legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--brown-mid); font-weight: 600; }
-.legend-dot { width: 12px; height: 12px; border-radius: 3px; }
-.dot-normal { background: #e0cdb8; }
-.dot-yellow { background: var(--yellow); }
-.dot-red { background: var(--red); }
-
-/* ── TABLE ── */
-.table-wrap { overflow-x: auto; padding: 12px; }
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 12px rgba(44,26,14,0.1);
-  font-size: 13px;
-}
-thead tr { background: var(--brown-dark); color: white; }
-thead th {
-  padding: 10px 6px;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-tbody tr { border-bottom: 1px solid #f0e8de; transition: background 0.15s; }
-tbody tr:last-child { border-bottom: none; }
-tbody tr.day-start td { border-top: 2px solid #e0cdb8; }
-
-td {
-  padding: 8px 5px;
-  text-align: center;
-  vertical-align: middle;
-}
-.day-label { font-size: 11px; color: var(--brown-mid); font-weight: 600; }
-.shift-badge {
-  display: inline-block;
-  padding: 2px 7px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 700;
-}
-.shift-s { background: #FFF9C4; color: #7A5800; }
-.shift-e { background: #E8F5E9; color: #1B5E20; }
-.shift-x { background: #EDE7F6; color: #4A148C; }
-
-.cash-input, .diff-input {
-  width: 70px;
-  padding: 6px 4px;
-  border: 1.5px solid #ddd;
-  border-radius: 7px;
-  text-align: center;
-  font-size: 13px;
-  font-family: inherit;
-  background: #fafafa;
-  color: var(--brown-dark);
-  transition: border-color 0.2s;
-  -webkit-appearance: none;
-}
-.cash-input:focus, .diff-input:focus {
-  outline: none;
-  border-color: var(--brown-mid);
-  background: white;
-}
-
-.recv-btn {
-  width: 36px; height: 36px;
-  border-radius: 8px;
-  border: 2px solid #ddd;
-  background: #f5f5f5;
-  font-size: 18px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s;
-  margin: 0 auto;
-}
-.recv-btn.received { background: var(--green-bg); border-color: var(--green); }
-.recv-btn.not-received { background: var(--red-bg); border-color: var(--red); }
-
-tr.row-yellow { background: var(--yellow-bg) !important; }
-tr.row-yellow td { color: #4A3000; }
-tr.row-yellow .cash-input, tr.row-yellow .diff-input { border-color: var(--yellow); background: #fffde7; }
-tr.row-red { background: var(--red-bg) !important; }
-tr.row-red td { color: #7f0000; }
-tr.row-red .cash-input, tr.row-red .diff-input { border-color: #ef9a9a; background: #fff5f5; }
-
-/* ── SUMMARY ── */
-.summary {
-  margin: 12px;
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 12px rgba(44,26,14,0.1);
-}
-.summary-header {
-  background: var(--brown-mid);
-  color: white;
-  padding: 10px 14px;
-  font-size: 14px;
-  font-weight: 700;
-}
-.summary-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  background: #f0e8de;
-}
-.summary-card {
-  background: white;
-  padding: 12px;
-  text-align: center;
-}
-.summary-card .val {
-  font-size: 20px; font-weight: 800;
-  color: var(--brown-dark);
-  direction: ltr;
-}
-.summary-card .val.red { color: var(--red); }
-.summary-card .val.yellow { color: var(--yellow); }
-.summary-card .lbl { font-size: 11px; color: var(--brown-mid); margin-top: 3px; font-weight: 600; }
-
-/* ── RESET BTN ── */
-.reset-btn {
-  display: block;
-  margin: 12px auto;
-  padding: 10px 24px;
-  background: var(--brown-mid);
-  color: white;
-  border: none;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-/* ══════════════════════════════════════════
-   SETTINGS PAGE
-   ══════════════════════════════════════════ */
-#settingsPage {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: var(--cream2);
-  z-index: 300;
-  overflow-y: auto;
-}
-
-.settings-topbar {
-  background: var(--brown-dark);
-  color: white;
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-.back-btn {
-  width: 36px; height: 36px;
-  border-radius: 9px;
-  border: 1.5px solid rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.1);
-  color: white;
-  font-size: 18px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-}
-.settings-topbar h2 { font-size: 18px; font-weight: 700; }
-
-.settings-section {
-  margin: 16px 12px 0;
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(44,26,14,0.08);
-}
-.settings-section-title {
-  background: var(--cream);
-  padding: 10px 14px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--brown-mid);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid #e8ddd0;
-}
-
-/* Branch cards */
-.branch-card {
-  display: flex;
-  align-items: center;
-  padding: 12px 14px;
-  border-bottom: 1px solid #f0e8de;
-  gap: 10px;
-}
-.branch-card:last-child { border-bottom: none; }
-.branch-icon { font-size: 22px; }
-.branch-info { flex: 1; }
-.branch-name { font-size: 15px; font-weight: 700; color: var(--brown-dark); }
-.branch-shifts { font-size: 11px; color: var(--brown-mid); margin-top: 2px; }
-.branch-actions { display: flex; gap: 6px; }
-.btn-icon {
-  width: 32px; height: 32px;
-  border-radius: 8px;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-}
-.btn-edit { background: var(--blue-bg); color: var(--blue); }
-.btn-delete { background: var(--red-bg); color: var(--red); }
-
-.add-branch-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 14px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--brown-mid);
-  font-size: 14px;
-  font-weight: 700;
-  border-top: 1px solid #f0e8de;
-}
-.add-branch-btn .plus {
-  width: 32px; height: 32px;
-  border-radius: 8px;
-  background: var(--green-bg);
-  color: var(--green);
-  font-size: 22px;
-  display: flex; align-items: center; justify-content: center;
-}
-
-/* ── FIREBASE CONFIG BOX ── */
-.config-box {
-  padding: 14px;
-}
-.config-box p {
-  font-size: 13px;
-  color: #555;
-  margin-bottom: 10px;
-  line-height: 1.5;
-}
-.config-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  margin-bottom: 12px;
-}
-.config-status.connected { background: var(--green-bg); color: var(--green); }
-.config-status.disconnected { background: var(--red-bg); color: var(--red); }
-
-/* ══════════════════════════════════════════
-   MODAL (Add/Edit Branch)
-   ══════════════════════════════════════════ */
-.modal-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 500;
-  align-items: flex-end;
-  justify-content: center;
-}
-.modal-overlay.open { display: flex; }
-
-.modal {
-  background: white;
-  border-radius: 20px 20px 0 0;
-  padding: 20px;
-  width: 100%;
-  max-width: 480px;
-  max-height: 80vh;
-  overflow-y: auto;
-  animation: slideUp 0.25s ease;
-}
-@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-.modal h3 { font-size: 18px; font-weight: 800; color: var(--brown-dark); margin-bottom: 16px; }
-
-.form-group { margin-bottom: 14px; }
-.form-label { font-size: 12px; font-weight: 700; color: var(--brown-mid); margin-bottom: 6px; display: block; }
-.form-input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1.5px solid #ddd;
-  border-radius: 10px;
-  font-size: 14px;
-  font-family: inherit;
-  color: var(--brown-dark);
-  background: #fafafa;
-}
-.form-input:focus { outline: none; border-color: var(--brown-mid); background: white; }
-
-.shifts-list { display: flex; flex-direction: column; gap: 8px; }
-.shift-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.shift-row .form-input { flex: 1; }
-.remove-shift {
-  width: 32px; height: 32px;
-  border-radius: 8px;
-  border: none;
-  background: var(--red-bg);
-  color: var(--red);
-  font-size: 18px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.add-shift-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 0;
-  background: none;
-  border: none;
-  color: var(--green);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.modal-actions { display: flex; gap: 10px; margin-top: 18px; }
-.btn-save {
-  flex: 1;
-  padding: 12px;
-  background: var(--brown-mid);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.btn-cancel {
-  flex: 1;
-  padding: 12px;
-  background: var(--cream2);
-  color: var(--brown-mid);
-  border: 1.5px solid var(--brown-light);
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-/* ── TOAST ── */
-.toast {
-  position: fixed;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%) translateY(100px);
-  background: var(--brown-dark);
-  color: white;
-  padding: 10px 20px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 600;
-  z-index: 999;
-  transition: transform 0.3s;
-  white-space: nowrap;
-}
-.toast.show { transform: translateX(-50%) translateY(0); }
-
-/* ── EMPTY STATE ── */
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--brown-mid);
-}
-.empty-state .emoji { font-size: 48px; }
-.empty-state p { margin-top: 10px; font-size: 14px; }
-</style>
-</head>
-<body>
-
-<!-- ══════ MAIN PAGE ══════ -->
-<div id="mainPage">
-  <div class="app-header">
-    <div>
-      <h1>☕ سجل الكوفي</h1>
-      <div class="subtitle" id="headerSubtitle">جاري التحميل...</div>
-    </div>
-    <button class="settings-icon-btn" onclick="openSettings()">⚙️</button>
-  </div>
-
-  <div class="sync-bar">
-    <div class="sync-dot" id="syncDot"></div>
-    <span id="syncText">بدون اتصال Firebase</span>
-  </div>
-
-  <div class="tabs-wrap" id="branchTabs"></div>
-
-  <div class="month-nav">
-    <button onclick="changeMonth(-1)">‹</button>
-    <div class="month-label" id="monthLabel"></div>
-    <button onclick="changeMonth(1)">›</button>
-  </div>
-
-  <div class="legend">
-    <div class="legend-item"><div class="legend-dot dot-normal"></div> عادي</div>
-    <div class="legend-item"><div class="legend-dot dot-yellow"></div> في فرق</div>
-    <div class="legend-item"><div class="legend-dot dot-red"></div> ما استُلم</div>
-  </div>
-
-  <div class="table-wrap" id="tableWrap"></div>
-  <div class="summary" id="summaryBox"></div>
-  <button class="reset-btn" onclick="resetMonth()">🗑 مسح بيانات هذا الشهر</button>
-</div>
-
-<!-- ══════ SETTINGS PAGE ══════ -->
-<div id="settingsPage">
-  <div class="settings-topbar">
-    <button class="back-btn" onclick="closeSettings()">‹</button>
-    <h2>⚙️ الإعدادات</h2>
-  </div>
-
-  <!-- Branches -->
-  <div class="settings-section">
-    <div class="settings-section-title">🏪 الفروع</div>
-    <div id="branchesList"></div>
-    <button class="add-branch-btn" onclick="openAddBranch()">
-      <div class="plus">+</div>
-      إضافة فرع جديد
-    </button>
-  </div>
-
-  <!-- Firebase Status -->
-  <div class="settings-section" style="margin-bottom:16px">
-    <div class="settings-section-title">🔥 Firebase (التخزين السحابي)</div>
-    <div class="config-box">
-      <div class="config-status" id="firebaseStatus">
-        <span>○</span> <span>جاري الفحص...</span>
-      </div>
-      <p>لتفعيل التخزين السحابي، افتح ملف HTML وابحث عن <strong>firebaseConfig</strong> وضع بيانات مشروعك من Firebase Console.</p>
-      <p style="margin-top:6px; font-size:12px; color:#888;">
-        console.firebase.google.com → مشروعك → Project Settings → Your Apps → Web App
-      </p>
-    </div>
-  </div>
-</div>
-
-<!-- ══════ MODAL: ADD/EDIT BRANCH ══════ -->
-<div class="modal-overlay" id="branchModal">
-  <div class="modal">
-    <h3 id="modalTitle">إضافة فرع</h3>
-    <div class="form-group">
-      <label class="form-label">اسم الفرع</label>
-      <input type="text" class="form-input" id="branchNameInput" placeholder="مثال: Come True">
-    </div>
-    <div class="form-group">
-      <label class="form-label">الشيفتات</label>
-      <div class="shifts-list" id="shiftsList"></div>
-      <button class="add-shift-btn" onclick="addShiftField()">+ إضافة شيفت</button>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-save" onclick="saveBranch()">حفظ</button>
-      <button class="btn-cancel" onclick="closeModal()">إلغاء</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-// ══════════════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════════════
-let currentBranch = null;   // branch id
-let currentMonth  = 0;      // offset from today
-let pageData      = {};     // current month's rows
-let editingBranchId = null; // null = adding new
-
-// Default branches (used if nothing in storage)
+// ─── THEME ──────────────────────────────────────────────────────────────────
+const T = {
+  bg:      '#0B1425',
+  surface: '#111C2D',
+  card:    '#172238',
+  border:  '#1F3050',
+  gold:    '#F0A500',
+  amber:   '#F59E0B',
+  blue:    '#4B9FEB',
+  green:   '#22C55E',
+  red:     '#EF4444',
+  text:    '#E8F0FF',
+  sub:     '#6A8BAF',
+  dim:     '#2E4565',
+};
+const PALETTES = ['#F0A500','#4B9FEB','#A78BFA','#22C55E','#EF4444','#F97316','#06B6D4','#EC4899'];
 const DEFAULT_BRANCHES = [
-  { id: 'come_true',    name: 'Come True',    shifts: ['صباحي ☀️','مسائي 🌙'] },
-  { id: 'coffee_maker', name: 'Coffee Maker', shifts: ['شيفت 🌟'] }
+  { id:'b1', name:'الفرع الأول', shifts:2, color:'#F0A500' },
+  { id:'b2', name:'الفرع الثاني', shifts:1, color:'#4B9FEB' },
 ];
 
-// ══════════════════════════════════════════════════════
-// STORAGE HELPERS — localStorage + Firebase
-// ══════════════════════════════════════════════════════
-function getBranches() {
-  const raw = localStorage.getItem('cf_branches');
-  return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_BRANCHES));
-}
+// ─── STATUS ─────────────────────────────────────────────────────────────────
+// green = مطابق | yellow = عجز | red = ظرف لم يصل
+const recStatus = (rec) => {
+  if (!rec) return null;
+  if (!rec.envelopeReceived) return 'red';
+  if (rec.hasDeficit && rec.deficitAmount > 0) return 'yellow';
+  return 'green';
+};
+const ST = {
+  green:  { bg:T.green+'18', border:T.green+'60', color:T.green,  label:'مطابق',       icon:'✅' },
+  yellow: { bg:T.amber+'18', border:T.amber+'60', color:T.amber,  label:'يوجد عجز',    icon:'🟡' },
+  red:    { bg:T.red+'18',   border:T.red+'60',   color:T.red,    label:'لم يصل الظرف',icon:'🔴' },
+};
 
-function saveBranches(branches) {
-  localStorage.setItem('cf_branches', JSON.stringify(branches));
-  syncBranchesToFirebase(branches);
-}
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+const uid       = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const todayStr  = () => new Date().toISOString().split('T')[0];
+const moneyFmt  = (n) => n==null ? '—' : new Intl.NumberFormat('ar-SA',{maximumFractionDigits:2}).format(n)+' ﷼';
+// ── All Gregorian ──
+const dateFmt   = (d) => d ? new Date(d+'T12:00:00').toLocaleDateString('ar-SA-u-ca-gregory',{weekday:'short',year:'numeric',month:'long',day:'numeric'}) : '';
+const monthFmt  = (y,m) => new Date(y,m-1,1).toLocaleDateString('ar-SA-u-ca-gregory',{month:'long',year:'numeric'});
+const timeFmt   = (iso) => iso ? new Date(iso).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit',hour12:true}) : '';
 
-function getMonthKey(offset) {
-  const d = new Date();
-  d.setDate(1);
-  d.setMonth(d.getMonth() + offset);
-  return `${d.getFullYear()}_${String(d.getMonth()+1).padStart(2,'0')}`;
-}
+const recentMonths = (n=12) => {
+  const out=[]; const now=new Date();
+  for(let i=0;i<n;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const y=d.getFullYear(), m=d.getMonth()+1;
+    out.push({ key:`${y}-${String(m).padStart(2,'0')}`, label:monthFmt(y,m) });
+  }
+  return out;
+};
 
-function getMonthLabel(offset) {
-  const d = new Date();
-  d.setDate(1);
-  d.setMonth(d.getMonth() + offset);
-  const months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو',
-                  'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-  return `${months[d.getMonth()]} ${d.getFullYear()}`;
-}
+// ─── STORAGE KEYS — ثابتة للأبد، لا تتغير ──────────────────────────────────
+const SK = {
+  BRANCHES: 'cafe_pro_branches_v1',
+  RECORDS:  'cafe_pro_records_v1',
+};
 
-function getDaysInMonth(offset) {
-  const d = new Date();
-  d.setDate(1);
-  d.setMonth(d.getMonth() + offset + 1);
-  d.setDate(0);
-  return d.getDate();
-}
+const storeSave = async (key, data) => {
+  const json = JSON.stringify(data);
+  for (let i = 0; i < 3; i++) {
+    try {
+      const res = await window.storage.set(key, json);
+      if (res) return true;
+    } catch {}
+    await new Promise(r => setTimeout(r, 300));
+  }
+  return false;
+};
 
-function localKey(branchId, monthKey) {
-  return `cf_${branchId}_${monthKey}`;
-}
-
-function loadMonthData(branchId, monthKey) {
-  const raw = localStorage.getItem(localKey(branchId, monthKey));
-  return raw ? JSON.parse(raw) : {};
-}
-
-function saveMonthData(branchId, monthKey, data) {
-  localStorage.setItem(localKey(branchId, monthKey), JSON.stringify(data));
-  syncMonthToFirebase(branchId, monthKey, data);
-}
-
-// ══════════════════════════════════════════════════════
-// FIREBASE SYNC
-// ══════════════════════════════════════════════════════
-function isFirebaseReady() {
-  return window._firebase && window._firebase.firebaseReady;
-}
-
-function setSyncStatus(state) {
-  // state: 'ok' | 'err' | 'syncing' | 'off'
-  const dot  = document.getElementById('syncDot');
-  const text = document.getElementById('syncText');
-  if (!dot) return;
-  dot.className = 'sync-dot' + (state === 'ok' ? ' ok' : state === 'err' ? ' err' : state === 'syncing' ? ' syncing' : '');
-  text.textContent = state === 'ok' ? 'محفوظ سحابياً ✓'
-                   : state === 'err' ? 'خطأ في الحفظ السحابي'
-                   : state === 'syncing' ? 'جاري الحفظ...'
-                   : 'بدون اتصال Firebase';
-}
-
-async function syncMonthToFirebase(branchId, monthKey, data) {
-  if (!isFirebaseReady()) return;
-  const { db, doc, setDoc } = window._firebase;
+const storeLoad = async (key) => {
   try {
-    setSyncStatus('syncing');
-    await setDoc(doc(db, 'coffee', `${branchId}_${monthKey}`), { data: JSON.stringify(data) });
-    setSyncStatus('ok');
-  } catch(e) {
-    console.error(e);
-    setSyncStatus('err');
-  }
-}
+    const res = await window.storage.get(key);
+    return res ? JSON.parse(res.value) : null;
+  } catch { return null; }
+};
+const inp = {
+  background:T.surface, border:`1px solid ${T.border}`, borderRadius:8,
+  padding:'9px 12px', color:T.text, fontFamily:'Cairo,sans-serif',
+  fontSize:13, outline:'none', width:'100%', boxSizing:'border-box',
+};
+const cardStyle = { background:T.card, border:`1px solid ${T.border}`, borderRadius:14 };
+const iconBtn   = (danger) => ({
+  background:'transparent', border:`1px solid ${danger?T.red+'60':T.border}`,
+  color:danger?T.red:T.sub, borderRadius:7, padding:'5px 7px', cursor:'pointer', display:'flex',
+});
+const primaryBtn = {
+  display:'flex', alignItems:'center', gap:5, background:T.gold, border:'none',
+  color:'#0B1425', borderRadius:8, padding:'7px 14px', cursor:'pointer',
+  fontFamily:'Cairo,sans-serif', fontWeight:700, fontSize:12,
+};
 
-async function syncBranchesToFirebase(branches) {
-  if (!isFirebaseReady()) return;
-  const { db, doc, setDoc } = window._firebase;
-  try {
-    await setDoc(doc(db, 'coffee', '__branches__'), { data: JSON.stringify(branches) });
-  } catch(e) { console.error(e); }
-}
+// ════════════════════════════════════════════════════════════════════════════
+export default function App() {
+  const [loading,   setLoading]   = useState(true);
+  const [saveStatus,setSaveStatus]= useState('idle'); // idle | saving | saved | error
+  const [saveTime,  setSaveTime]  = useState(null);
+  const [branches,  setBranches]  = useState([]);
+  const [records,   setRecords]   = useState([]);
+  const [tab,       setTab]       = useState('dash');
+  const [dashDate,  setDashDate]  = useState(todayStr());
+  const [bModal,    setBModal]    = useState(null);
+  const [rModal,    setRModal]    = useState(null);
+  const [bF,        setBF]        = useState({});
+  const [rF,        setRF]        = useState({});
+  const importRef = useState(null);
 
-async function loadFromFirebase(branchId, monthKey) {
-  if (!isFirebaseReady()) return null;
-  const { db, doc, getDoc } = window._firebase;
-  try {
-    const snap = await getDoc(doc(db, 'coffee', `${branchId}_${monthKey}`));
-    if (snap.exists()) return JSON.parse(snap.data().data);
-  } catch(e) { console.error(e); }
-  return null;
-}
-
-async function loadBranchesFromFirebase() {
-  if (!isFirebaseReady()) return null;
-  const { db, doc, getDoc } = window._firebase;
-  try {
-    const snap = await getDoc(doc(db, 'coffee', '__branches__'));
-    if (snap.exists()) return JSON.parse(snap.data().data);
-  } catch(e) { console.error(e); }
-  return null;
-}
-
-// ══════════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════════
-async function init() {
-  // Try to load branches from Firebase first
-  const fbBranches = await loadBranchesFromFirebase();
-  if (fbBranches && fbBranches.length > 0) {
-    localStorage.setItem('cf_branches', JSON.stringify(fbBranches));
-  }
-
-  const branches = getBranches();
-  if (!currentBranch || !branches.find(b => b.id === currentBranch)) {
-    currentBranch = branches[0].id;
-  }
-
-  updateFirebaseStatusUI();
-  renderTabs();
-  await renderMain();
-}
-
-function updateFirebaseStatusUI() {
-  const status = document.getElementById('firebaseStatus');
-  if (!status) return;
-  if (isFirebaseReady()) {
-    status.className = 'config-status connected';
-    status.innerHTML = '<span>✅</span> <span>متصل بـ Firebase</span>';
-    setSyncStatus('ok');
-  } else {
-    status.className = 'config-status disconnected';
-    status.innerHTML = '<span>❌</span> <span>غير متصل — يحفظ محلياً فقط</span>';
-    setSyncStatus('off');
-  }
-}
-
-// ══════════════════════════════════════════════════════
-// RENDER TABS
-// ══════════════════════════════════════════════════════
-function renderTabs() {
-  const branches = getBranches();
-  const wrap = document.getElementById('branchTabs');
-  wrap.innerHTML = branches.map(b =>
-    `<button class="tab${b.id === currentBranch ? ' active' : ''}"
-      onclick="switchBranch('${b.id}')">${b.name}</button>`
-  ).join('');
-
-  // Update header subtitle
-  const active = branches.find(b => b.id === currentBranch);
-  if (active) {
-    document.getElementById('headerSubtitle').textContent = active.shifts.join('  |  ');
-  }
-}
-
-// ══════════════════════════════════════════════════════
-// RENDER MAIN TABLE
-// ══════════════════════════════════════════════════════
-async function renderMain() {
-  const branches = getBranches();
-  const branch = branches.find(b => b.id === currentBranch);
-  if (!branch) {
-    document.getElementById('tableWrap').innerHTML =
-      '<div class="empty-state"><div class="emoji">🏪</div><p>لا يوجد فروع — أضف فرع من الإعدادات ⚙️</p></div>';
-    document.getElementById('summaryBox').innerHTML = '';
-    return;
-  }
-
-  document.getElementById('monthLabel').textContent = getMonthLabel(currentMonth);
-  const monthKey = getMonthKey(currentMonth);
-
-  // Load from Firebase if available, else local
-  const fbData = await loadFromFirebase(currentBranch, monthKey);
-  if (fbData) {
-    localStorage.setItem(localKey(currentBranch, monthKey), JSON.stringify(fbData));
-    if (isFirebaseReady()) setSyncStatus('ok');
-  }
-  pageData = loadMonthData(currentBranch, monthKey);
-
-  const days = getDaysInMonth(currentMonth);
-  let html = `<table>
-    <thead><tr>
-      <th>اليوم</th><th>الشيفت</th><th>الكاش</th><th>الفرق</th><th>الاستلام</th>
-    </tr></thead><tbody>`;
-
-  const shiftColors = ['shift-s','shift-e','shift-x'];
-
-  for (let day = 1; day <= days; day++) {
-    branch.shifts.forEach((shift, si) => {
-      const rk = `${day}_${si}`;
-      const row = pageData[rk] || { cash:'', diff:'', recv:'none' };
-      const hasDiff = row.diff !== '' && row.diff !== '0' && row.diff !== 0;
-      const isNo = row.recv === 'no';
-      const rowClass = isNo ? 'row-red' : (hasDiff ? 'row-yellow' : '');
-      const isFirst = si === 0;
-      const recvIcon = row.recv==='yes' ? '✅' : row.recv==='no' ? '❌' : '○';
-      const recvClass = row.recv==='yes' ? 'received' : row.recv==='no' ? 'not-received' : '';
-      const sc = shiftColors[si % shiftColors.length];
-
-      html += `<tr class="${rowClass}${isFirst ? ' day-start' : ''}" id="row_${day}_${si}">
-        <td>${isFirst ? `<div class="day-label">${day}</div>` : ''}</td>
-        <td><span class="shift-badge ${sc}">${shift}</span></td>
-        <td><input class="cash-input" type="number" inputmode="numeric" placeholder="0"
-          value="${row.cash}"
-          onchange="updateRow(${day},${si},'cash',this.value)"
-          onblur="updateRow(${day},${si},'cash',this.value)"></td>
-        <td><input class="diff-input" type="number" inputmode="numeric" placeholder="0"
-          value="${row.diff}"
-          onchange="updateRow(${day},${si},'diff',this.value)"
-          onblur="updateRow(${day},${si},'diff',this.value)"></td>
-        <td><button class="recv-btn ${recvClass}" onclick="toggleRecv(${day},${si})">${recvIcon}</button></td>
-      </tr>`;
+  useEffect(() => {
+    const link = Object.assign(document.createElement('link'),{
+      rel:'stylesheet',
+      href:'https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap',
     });
-  }
-  html += '</tbody></table>';
-  document.getElementById('tableWrap').innerHTML = html;
-  renderSummary(days, branch);
-}
+    document.head.appendChild(link);
+    Promise.all([
+      storeLoad(SK.BRANCHES),
+      storeLoad(SK.RECORDS),
+    ]).then(([b,r])=>{
+      setBranches(b || DEFAULT_BRANCHES);
+      setRecords(r || []);
+      setLoading(false);
+    }).catch(()=>{ setBranches(DEFAULT_BRANCHES); setRecords([]); setLoading(false); });
+  },[]);
 
-// ══════════════════════════════════════════════════════
-// ROW UPDATES
-// ══════════════════════════════════════════════════════
-function updateRow(day, si, field, val) {
-  const rk = `${day}_${si}`;
-  if (!pageData[rk]) pageData[rk] = { cash:'', diff:'', recv:'none' };
-  pageData[rk][field] = val;
-  saveMonthData(currentBranch, getMonthKey(currentMonth), pageData);
-  refreshRow(day, si);
-  renderSummaryOnly();
-}
+  const saveBranches = async (data) => {
+    setBranches(data);
+    setSaveStatus('saving');
+    const ok = await storeSave(SK.BRANCHES, data);
+    if (ok) { setSaveStatus('saved'); setSaveTime(new Date()); }
+    else     { setSaveStatus('error'); }
+  };
+  const saveRecords = async (data) => {
+    setRecords(data);
+    setSaveStatus('saving');
+    const ok = await storeSave(SK.RECORDS, data);
+    if (ok) { setSaveStatus('saved'); setSaveTime(new Date()); }
+    else     { setSaveStatus('error'); }
+  };
+  const manualSave = async () => {
+    setSaveStatus('saving');
+    const [ok1, ok2] = await Promise.all([
+      storeSave(SK.BRANCHES, branches),
+      storeSave(SK.RECORDS,  records),
+    ]);
+    if (ok1 && ok2) { setSaveStatus('saved'); setSaveTime(new Date()); }
+    else             { setSaveStatus('error'); }
+  };
 
-function toggleRecv(day, si) {
-  const rk = `${day}_${si}`;
-  if (!pageData[rk]) pageData[rk] = { cash:'', diff:'', recv:'none' };
-  const cur = pageData[rk].recv;
-  pageData[rk].recv = cur==='none' ? 'yes' : cur==='yes' ? 'no' : 'none';
-  saveMonthData(currentBranch, getMonthKey(currentMonth), pageData);
-  refreshRow(day, si);
-  renderSummaryOnly();
-}
+  // ── Export / Import ──────────────────────────────────────────────────────
+  const exportData = () => {
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      branches,
+      records,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `مقهى-نسخة-${todayStr()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
-function refreshRow(day, si) {
-  const rk = `${day}_${si}`;
-  const row = pageData[rk] || { cash:'', diff:'', recv:'none' };
-  const tr = document.getElementById(`row_${day}_${si}`);
-  if (!tr) return;
-  const hasDiff = row.diff !== '' && row.diff !== '0' && row.diff !== 0;
-  const isNo = row.recv === 'no';
-  tr.className = tr.className.replace(/row-red|row-yellow/g,'').trim();
-  if (isNo) tr.classList.add('row-red');
-  else if (hasDiff) tr.classList.add('row-yellow');
-  const btn = tr.querySelector('.recv-btn');
-  btn.className = 'recv-btn';
-  if (row.recv==='yes') { btn.classList.add('received'); btn.textContent='✅'; }
-  else if (row.recv==='no') { btn.classList.add('not-received'); btn.textContent='❌'; }
-  else btn.textContent='○';
-}
+  const importData = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const data = JSON.parse(evt.target.result);
+        if (data.branches) await saveBranches(data.branches);
+        if (data.records)  await saveRecords(data.records);
+        alert('✅ تم استيراد البيانات بنجاح!');
+      } catch {
+        alert('❌ خطأ في قراءة الملف، تأكد من صحة الملف');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
-function renderSummary(days, branch) {
-  let totalCash=0, totalDiff=0, countNo=0, countDiff=0;
-  for (let d=1;d<=days;d++) {
-    branch.shifts.forEach((_,si) => {
-      const row = pageData[`${d}_${si}`] || {};
-      if (row.cash) totalCash += parseFloat(row.cash)||0;
-      if (row.diff && row.diff!=0) { totalDiff += parseFloat(row.diff)||0; countDiff++; }
-      if (row.recv==='no') countNo++;
-    });
-  }
-  document.getElementById('summaryBox').innerHTML = `
-    <div class="summary-header">📊 ملخص ${getMonthLabel(currentMonth)}</div>
-    <div class="summary-grid">
-      <div class="summary-card">
-        <div class="val">${totalCash.toLocaleString('ar-SA')}</div>
-        <div class="lbl">إجمالي الكاش (ريال)</div>
+  // ── Branch CRUD ──────────────────────────────────────────────────────────
+  const openAddBranch = () => {
+    setBF({name:'',shifts:1,color:PALETTES[branches.length%PALETTES.length]});
+    setBModal({editing:null});
+  };
+  const openEditBranch = (b) => { setBF({name:b.name,shifts:b.shifts,color:b.color}); setBModal({editing:b}); };
+  const saveBranch = async () => {
+    if(!bF.name?.trim()) return;
+    const updated = bModal.editing
+      ? branches.map(b=>b.id===bModal.editing.id?{...b,...bF}:b)
+      : [...branches,{id:uid(),...bF}];
+    await saveBranches(updated); setBModal(null);
+  };
+  const deleteBranch = async (id) => {
+    if(!window.confirm('حذف هذا الفرع وجميع سجلاته؟')) return;
+    await saveBranches(branches.filter(b=>b.id!==id));
+    await saveRecords(records.filter(r=>r.branchId!==id));
+  };
+
+  // ── Record CRUD ──────────────────────────────────────────────────────────
+  const openAddRec = (branchId,shift,date) => {
+    const bId = branchId||branches[0]?.id;
+    setRF({branchId:bId,shift:shift||1,date:date||todayStr(),env:true,present:'',hasDeficit:false,deficitAmt:'',note:''});
+    setRModal({editing:null,preset:!!(branchId&&shift)});
+  };
+  const openEditRec = (r) => {
+    setRF({branchId:r.branchId,shift:r.shift,date:r.date,env:r.envelopeReceived,
+      present:r.presentAmount,hasDeficit:r.hasDeficit||false,deficitAmt:r.deficitAmount||'',note:r.notes||''});
+    setRModal({editing:r,preset:true});
+  };
+  const saveRec = async () => {
+    if(!rF.branchId||!rF.date) return;
+    const rec = {
+      branchId:rF.branchId, shift:parseInt(rF.shift), date:rF.date,
+      envelopeReceived:rF.env,
+      presentAmount:parseFloat(rF.present)||0,
+      hasDeficit:rF.hasDeficit,
+      deficitAmount:rF.hasDeficit?(parseFloat(rF.deficitAmt)||0):0,
+      notes:rF.note,
+    };
+    const now = new Date().toISOString();
+    const updated = rModal.editing
+      ? records.map(r=>r.id===rModal.editing.id?{...r,...rec,updatedAt:now}:r)
+      : [...records,{id:uid(),...rec,createdAt:now}];
+    await saveRecords(updated); setRModal(null);
+  };
+  const deleteRec = async (id) => {
+    if(!window.confirm('حذف هذا السجل؟')) return;
+    await saveRecords(records.filter(r=>r.id!==id));
+  };
+  const getRec = (bId,shift,date) => records.find(r=>r.branchId===bId&&r.shift===shift&&r.date===date);
+
+  // ── Dashboard stats ──────────────────────────────────────────────────────
+  const dayRecs  = records.filter(r=>r.date===dashDate);
+  const dayTotal = dayRecs.reduce((s,r)=>s+(r.presentAmount||0),0);
+  const dayDef   = dayRecs.reduce((s,r)=>s+(r.deficitAmount||0),0);
+  const envCount = dayRecs.filter(r=>r.envelopeReceived).length;
+  const totalShifts = branches.reduce((s,b)=>s+b.shifts,0);
+
+  if(loading) return(
+    <div style={{fontFamily:'Cairo,sans-serif',background:T.bg,height:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',color:T.gold,gap:12}}>
+      <Coffee size={40}/><span style={{fontSize:18,fontWeight:700}}>جاري التحميل...</span>
+    </div>
+  );
+
+  return(
+    <div dir="rtl" style={{fontFamily:'Cairo,sans-serif',background:T.bg,minHeight:'100vh',color:T.text,fontSize:14}}>
+
+      {/* ── TOPBAR ── */}
+      <nav style={{background:T.surface,borderBottom:`1px solid ${T.border}`,position:'sticky',top:0,zIndex:100}}>
+        <div style={{maxWidth:960,margin:'0 auto',padding:'0 12px',height:58,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <div style={{background:T.gold+'22',border:`1px solid ${T.gold}44`,borderRadius:10,padding:'6px 8px',display:'flex'}}>
+              <Coffee size={18} color={T.gold}/>
+            </div>
+            <div>
+              <div style={{fontWeight:800,fontSize:14,color:T.gold,lineHeight:1.1}}>إدارة المقهى</div>
+              <div style={{fontSize:9,color:T.sub}}>Café Manager Pro</div>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:3}}>
+            {[['dash',<Home size={13}/>,'اليومية'],
+              ['records',<ClipboardList size={13}/>,'التقفيلات'],
+              ['branches',<Store size={13}/>,'الفروع']].map(([id,icon,label])=>(
+              <button key={id} onClick={()=>setTab(id)} style={{
+                display:'flex',alignItems:'center',gap:4,
+                background:tab===id?T.gold:'transparent',
+                color:tab===id?'#0B1425':T.sub,
+                border:tab===id?'none':`1px solid ${T.border}`,
+                borderRadius:8,padding:'5px 10px',cursor:'pointer',
+                fontFamily:'Cairo,sans-serif',fontWeight:700,fontSize:12,
+              }}>{icon}{label}</button>
+            ))}
+          </div>
+          {/* Save status + Export/Import */}
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            {/* Status indicator */}
+            <div style={{
+              display:'flex', alignItems:'center', gap:4, fontSize:10,
+              color: saveStatus==='saved'?T.green : saveStatus==='error'?T.red : saveStatus==='saving'?T.amber : T.dim,
+              transition:'color 0.3s',
+            }}>
+              <Cloud size={12}/>
+              <span style={{display:'none'}}>
+                {saveStatus==='saved'?'محفوظ':saveStatus==='error'?'خطأ':saveStatus==='saving'?'...':''}
+              </span>
+            </div>
+            {/* Export */}
+            <button onClick={exportData} title="تصدير النسخة الاحتياطية"
+              style={{background:T.green+'22',border:`1px solid ${T.green}50`,color:T.green,borderRadius:7,padding:'5px 8px',cursor:'pointer',display:'flex',alignItems:'center',gap:3,fontSize:11,fontFamily:'Cairo,sans-serif',fontWeight:700}}>
+              📤
+            </button>
+            {/* Import */}
+            <label title="استيراد نسخة احتياطية"
+              style={{background:T.blue+'22',border:`1px solid ${T.blue}50`,color:T.blue,borderRadius:7,padding:'5px 8px',cursor:'pointer',display:'flex',alignItems:'center',gap:3,fontSize:11,fontFamily:'Cairo,sans-serif',fontWeight:700}}>
+              📥
+              <input type="file" accept=".json" onChange={importData} style={{display:'none'}}/>
+            </label>
+          </div>
+        </div>
+      </nav>
+
+      <div style={{maxWidth:960,margin:'0 auto',padding:'16px 12px 50px'}}>
+
+        {/* ── Save Status Banner ── */}
+        {saveStatus==='error' && (
+          <div style={{background:T.red+'18',border:`1px solid ${T.red}50`,borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+            <div>
+              <div style={{color:T.red,fontWeight:700,fontSize:13}}>⚠️ تعذّر الحفظ التلقائي</div>
+              <div style={{color:T.sub,fontSize:11,marginTop:2}}>اضغط "حفظ الآن" لإعادة المحاولة</div>
+            </div>
+            <button onClick={manualSave} style={{...primaryBtn,background:T.red,fontSize:12,whiteSpace:'nowrap'}}>💾 حفظ الآن</button>
+          </div>
+        )}
+        {saveStatus==='saved' && saveTime && (
+          <div style={{background:T.green+'12',border:`1px solid ${T.green}30`,borderRadius:10,padding:'7px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
+            <Cloud size={14} color={T.green}/>
+            <span style={{color:T.green,fontSize:12,fontWeight:700}}>✅ البيانات محفوظة في Claude — {saveTime.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit',hour12:true})}</span>
+          </div>
+        )}
+        {saveStatus==='saving' && (
+          <div style={{background:T.amber+'12',border:`1px solid ${T.amber}30`,borderRadius:10,padding:'7px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
+            <Cloud size={14} color={T.amber}/>
+            <span style={{color:T.amber,fontSize:12}}>جاري الحفظ...</span>
+          </div>
+        )}
+
+        {/* ── Backup reminder (shown once per session) ── */}
+
+        {/* ══ DASHBOARD ══ */}
+        {tab==='dash'&&(
+          <>
+            <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:16}}>
+              <div>
+                <h1 style={{margin:0,fontSize:20,fontWeight:800}}>اليومية</h1>
+                <p style={{margin:'3px 0 0',color:T.sub,fontSize:11}}>{dateFmt(dashDate)}</p>
+              </div>
+              <input type="date" value={dashDate} onChange={e=>setDashDate(e.target.value)}
+                style={{...inp,width:'auto',padding:'6px 10px',cursor:'pointer',fontSize:12}}/>
+            </div>
+
+            {/* Stats */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:18}}>
+              {[
+                {icon:<TrendingUp size={16}/>,  label:'إجمالي الموجود', val:moneyFmt(dayTotal), clr:T.green},
+                {icon:<AlertCircle size={16}/>, label:'إجمالي العجز',   val:moneyFmt(dayDef),   clr:dayDef>0?T.red:T.green},
+                {icon:<Mail size={16}/>,        label:'الظروف',         val:`${envCount}/${totalShifts}`, clr:T.gold},
+                {icon:<Store size={16}/>,       label:'الفروع',         val:branches.length,    clr:T.blue},
+              ].map((s,i)=>(
+                <div key={i} style={{...cardStyle,padding:'11px 10px'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                    <span style={{color:s.clr}}>{s.icon}</span>
+                    <span style={{color:T.sub,fontSize:9,textAlign:'left'}}>{s.label}</span>
+                  </div>
+                  <div style={{fontWeight:800,fontSize:15,color:s.clr}}>{s.val}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Legend */}
+            <div style={{display:'flex',gap:12,marginBottom:12,flexWrap:'wrap'}}>
+              {[['✅','أخضر — مطابق',T.green],['🟡','أصفر — يوجد عجز',T.amber],['🔴','أحمر — لم يصل الظرف',T.red]].map(([ic,lb,c])=>(
+                <div key={lb} style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:c}}>
+                  <span>{ic}</span><span>{lb}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Daily Table */}
+            {branches.length===0
+              ? <Empty icon={<Store size={44}/>} msg="لا توجد فروع" sub='اذهب إلى "الفروع" لإضافة فرعك الأول'/>
+              : <DailyTable branches={branches} date={dashDate} getRec={getRec} onAdd={openAddRec} onEdit={openEditRec}/>
+            }
+            {/* Backup card */}
+            <div style={{marginTop:16,background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,padding:'14px 16px'}}>
+              <div style={{fontWeight:700,fontSize:13,color:T.text,marginBottom:4}}>💾 الحفظ والنسخ الاحتياطية</div>
+              <div style={{color:T.sub,fontSize:11,marginBottom:10}}>
+                بياناتك محفوظة داخل Claude تلقائياً. يمكنك أيضاً تصدير نسخة احتياطية على هاتفك.
+              </div>
+              {saveTime && (
+                <div style={{color:T.green,fontSize:11,marginBottom:10,display:'flex',alignItems:'center',gap:5}}>
+                  <Cloud size={12}/> آخر حفظ ناجح: {saveTime.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit',hour12:true})}
+                  {' · '}{saveTime.toLocaleDateString('ar-SA-u-ca-gregory',{day:'numeric',month:'short'})}
+                </div>
+              )}
+              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                <button onClick={manualSave} style={{...primaryBtn,background:T.gold,fontSize:12}}>
+                  💾 {saveStatus==='saving'?'جاري الحفظ...':'حفظ البيانات الآن'}
+                </button>
+                <button onClick={exportData} style={{...primaryBtn,background:T.green,fontSize:12}}>📤 تصدير JSON</button>
+                <label style={{...primaryBtn,background:T.blue,fontSize:12,cursor:'pointer'}}>
+                  📥 استيراد JSON
+                  <input type="file" accept=".json" onChange={importData} style={{display:'none'}}/>
+                </label>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ══ RECORDS ══ */}
+        {tab==='records'&&(
+          <RecordsView branches={branches} records={records}
+            onEdit={openEditRec} onDelete={deleteRec} onAdd={openAddRec}/>
+        )}
+
+        {/* ══ BRANCHES ══ */}
+        {tab==='branches'&&(
+          <BranchesView branches={branches} records={records}
+            onAdd={openAddBranch} onEdit={openEditBranch} onDelete={deleteBranch}/>
+        )}
       </div>
-      <div class="summary-card">
-        <div class="val ${totalDiff<0?'red':'yellow'}">${totalDiff.toLocaleString('ar-SA')}</div>
-        <div class="lbl">إجمالي الفروق (ريال)</div>
+
+      {/* ══ BRANCH MODAL ══ */}
+      {bModal&&(
+        <Modal title={bModal.editing?'تعديل الفرع':'فرع جديد'} onClose={()=>setBModal(null)}>
+          <div style={{display:'flex',flexDirection:'column',gap:14}}>
+            <Fld label="اسم الفرع">
+              <input value={bF.name||''} onChange={e=>setBF(f=>({...f,name:e.target.value}))}
+                placeholder="مثال: فرع الريان" style={inp} autoFocus/>
+            </Fld>
+            <Fld label="عدد التقفيلات اليومية">
+              <div style={{display:'flex',gap:8}}>
+                {[[1,'☀️ تقفيلة واحدة'],[2,'☀️🌙 تقفيلتان']].map(([n,lb])=>(
+                  <button key={n} onClick={()=>setBF(f=>({...f,shifts:n}))} style={{
+                    flex:1,padding:'10px',borderRadius:8,cursor:'pointer',
+                    border:`2px solid ${bF.shifts===n?bF.color||T.gold:T.border}`,
+                    background:bF.shifts===n?`${bF.color||T.gold}18`:T.surface,
+                    color:bF.shifts===n?bF.color||T.gold:T.sub,
+                    fontFamily:'Cairo,sans-serif',fontWeight:600,fontSize:13,
+                  }}>{lb}</button>
+                ))}
+              </div>
+            </Fld>
+            <Fld label="لون الفرع">
+              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                {PALETTES.map(p=>(
+                  <button key={p} onClick={()=>setBF(f=>({...f,color:p}))} style={{
+                    width:30,height:30,borderRadius:'50%',background:p,cursor:'pointer',
+                    border:`3px solid ${bF.color===p?'white':'transparent'}`,
+                    outline:bF.color===p?`2px solid ${p}`:'none',outlineOffset:2,
+                  }}/>
+                ))}
+              </div>
+            </Fld>
+            <div style={{display:'flex',gap:8,marginTop:4}}>
+              <ModalBtn primary onClick={saveBranch}>💾 حفظ</ModalBtn>
+              <ModalBtn onClick={()=>setBModal(null)}>إلغاء</ModalBtn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ══ RECORD MODAL ══ */}
+      {rModal&&(
+        <Modal title={`${rModal.editing?'تعديل':'تسجيل'} تقفيلة`} onClose={()=>setRModal(null)}>
+          <div style={{display:'flex',flexDirection:'column',gap:14}}>
+            {/* Branch + Shift (when not preset) */}
+            {!rModal.preset&&(
+              <>
+                <Fld label="الفرع">
+                  <select value={rF.branchId||''} onChange={e=>setRF(f=>({...f,branchId:e.target.value,shift:1}))} style={inp}>
+                    {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                </Fld>
+                {branches.find(b=>b.id===rF.branchId)?.shifts===2&&(
+                  <Fld label="نوع التقفيلة">
+                    <select value={rF.shift||1} onChange={e=>setRF(f=>({...f,shift:parseInt(e.target.value)}))} style={inp}>
+                      <option value={1}>☀️ الشفت الصباحي</option>
+                      <option value={2}>🌙 الشفت المسائي</option>
+                    </select>
+                  </Fld>
+                )}
+              </>
+            )}
+            {/* Date */}
+            <Fld label="التاريخ">
+              <input type="date" value={rF.date||''} onChange={e=>setRF(f=>({...f,date:e.target.value}))} style={inp}/>
+            </Fld>
+            {/* Envelope */}
+            <Fld label="حالة الظرف">
+              <div style={{display:'flex',gap:8}}>
+                {[[true,'✅ وصل الظرف'],[false,'❌ لم يصل']].map(([v,lb])=>(
+                  <button key={String(v)} onClick={()=>setRF(f=>({...f,env:v}))} style={{
+                    flex:1,padding:'9px',borderRadius:8,cursor:'pointer',
+                    border:`2px solid ${rF.env===v?(v?T.green:T.red):T.border}`,
+                    background:rF.env===v?`${v?T.green:T.red}18`:T.surface,
+                    color:rF.env===v?(v?T.green:T.red):T.sub,
+                    fontFamily:'Cairo,sans-serif',fontWeight:600,fontSize:12,
+                  }}>{lb}</button>
+                ))}
+              </div>
+            </Fld>
+            {/* Amount present */}
+            <Fld label="المبلغ الموجود (ر.س)">
+              <input type="number" value={rF.present||''} onChange={e=>setRF(f=>({...f,present:e.target.value}))} placeholder="0.00" style={inp}/>
+            </Fld>
+            {/* Has deficit toggle */}
+            <Fld label="هل يوجد عجز؟">
+              <div style={{display:'flex',gap:8}}>
+                {[[false,'لا يوجد عجز ✅'],[true,'نعم، يوجد عجز ⚠️']].map(([v,lb])=>(
+                  <button key={String(v)} onClick={()=>setRF(f=>({...f,hasDeficit:v,deficitAmt:v?f.deficitAmt:''}))} style={{
+                    flex:1,padding:'9px',borderRadius:8,cursor:'pointer',
+                    border:`2px solid ${rF.hasDeficit===v?(v?T.amber:T.green):T.border}`,
+                    background:rF.hasDeficit===v?`${v?T.amber:T.green}18`:T.surface,
+                    color:rF.hasDeficit===v?(v?T.amber:T.green):T.sub,
+                    fontFamily:'Cairo,sans-serif',fontWeight:600,fontSize:12,
+                  }}>{lb}</button>
+                ))}
+              </div>
+            </Fld>
+            {/* Deficit amount — shown only if hasDeficit */}
+            {rF.hasDeficit&&(
+              <Fld label="مبلغ العجز (ر.س)">
+                <input type="number" value={rF.deficitAmt||''} onChange={e=>setRF(f=>({...f,deficitAmt:e.target.value}))}
+                  placeholder="أدخل مبلغ العجز..." style={{...inp,border:`1px solid ${T.amber}60`}} autoFocus/>
+                {rF.deficitAmt&&(
+                  <div style={{marginTop:6,background:T.amber+'18',border:`1px solid ${T.amber}50`,borderRadius:8,padding:'7px 12px',display:'flex',justifyContent:'space-between'}}>
+                    <span style={{color:T.amber,fontSize:12}}>⚠️ مبلغ العجز</span>
+                    <span style={{color:T.amber,fontWeight:800}}>{moneyFmt(parseFloat(rF.deficitAmt))}</span>
+                  </div>
+                )}
+              </Fld>
+            )}
+            {/* Notes */}
+            <Fld label="ملاحظات اليوم">
+              <textarea value={rF.note||''} onChange={e=>setRF(f=>({...f,note:e.target.value}))}
+                placeholder="سجّل أي ملاحظة مهمة عن هذه التقفيلة..."
+                rows={3} style={{...inp,resize:'vertical',lineHeight:1.6}}/>
+            </Fld>
+            <div style={{display:'flex',gap:8}}>
+              <ModalBtn primary onClick={saveRec}>💾 حفظ التقفيلة</ModalBtn>
+              <ModalBtn onClick={()=>setRModal(null)}>إلغاء</ModalBtn>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// DailyTable — جدول اليومية
+// ════════════════════════════════════════════════════════════════════════════
+function DailyTable({ branches, date, getRec, onAdd, onEdit }) {
+  const hasTwoShifts = branches.some(b=>b.shifts===2);
+
+  return (
+    <div style={{...cardStyle,overflow:'hidden'}}>
+      {/* Table header */}
+      <div style={{display:'grid',gridTemplateColumns:hasTwoShifts?'130px 1fr 1fr':'130px 1fr',background:T.surface,borderBottom:`1px solid ${T.border}`}}>
+        <div style={{padding:'10px 12px',color:T.sub,fontSize:11,fontWeight:700,borderLeft:`1px solid ${T.border}`}}>الفرع</div>
+        <div style={{padding:'10px 12px',color:T.sub,fontSize:11,fontWeight:700,textAlign:'center',borderLeft:`1px solid ${T.border}`}}>☀️ الشفت الصباحي</div>
+        {hasTwoShifts&&<div style={{padding:'10px 12px',color:T.sub,fontSize:11,fontWeight:700,textAlign:'center',borderLeft:`1px solid ${T.border}`}}>🌙 الشفت المسائي</div>}
       </div>
-      <div class="summary-card">
-        <div class="val red">${countNo}</div>
-        <div class="lbl">ظروف غير مستلمة ❌</div>
+
+      {/* Table rows */}
+      {branches.map((b,bIdx)=>{
+        const rec1 = getRec(b.id,1,date);
+        const rec2 = b.shifts===2 ? getRec(b.id,2,date) : null;
+        const st1  = recStatus(rec1);
+        const st2  = b.shifts===2 ? recStatus(rec2) : null;
+        const isLast = bIdx===branches.length-1;
+
+        return(
+          <div key={b.id} style={{display:'grid',gridTemplateColumns:hasTwoShifts?'130px 1fr 1fr':'130px 1fr',borderBottom:isLast?'none':`1px solid ${T.border}`}}>
+            {/* Branch name col */}
+            <div style={{padding:'12px',display:'flex',alignItems:'center',gap:6,borderLeft:`1px solid ${T.border}`,background:`${b.color}08`}}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:b.color,flexShrink:0}}/>
+              <span style={{fontWeight:700,color:b.color,fontSize:12,lineHeight:1.2}}>{b.name}</span>
+            </div>
+
+            {/* Morning shift */}
+            <ShiftCell rec={rec1} status={st1} onAdd={()=>onAdd(b.id,1,date)} onEdit={()=>onEdit(rec1)}/>
+
+            {/* Evening shift */}
+            {hasTwoShifts&&(
+              b.shifts===2
+                ? <ShiftCell rec={rec2} status={st2} onAdd={()=>onAdd(b.id,2,date)} onEdit={()=>onEdit(rec2)}/>
+                : <div style={{display:'flex',alignItems:'center',justifyContent:'center',borderLeft:`1px solid ${T.border}`,background:T.surface+'60'}}>
+                    <span style={{color:T.dim,fontSize:12}}>— لا يوجد</span>
+                  </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ShiftCell({ rec, status, onAdd, onEdit }) {
+  const s = status ? ST[status] : null;
+  return(
+    <div style={{
+      padding:'10px 10px',
+      borderLeft:`1px solid ${T.border}`,
+      background:s?s.bg:'transparent',
+      borderTop:s?`3px solid ${s.border}`:'3px solid transparent',
+      minHeight:70, display:'flex', flexDirection:'column', justifyContent:'center',
+    }}>
+      {rec?(
+        <div style={{display:'flex',flexDirection:'column',gap:4}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontSize:12,color:s?.color,fontWeight:700}}>{s?.icon} {s?.label}</span>
+            <button onClick={onEdit} style={{background:'transparent',border:'none',color:T.sub,cursor:'pointer',display:'flex',padding:0}}>
+              <Edit2 size={12}/>
+            </button>
+          </div>
+          <div style={{fontWeight:800,fontSize:15,color:s?.color}}>{moneyFmt(rec.presentAmount)}</div>
+          {rec.hasDeficit&&rec.deficitAmount>0&&(
+            <div style={{fontSize:10,color:T.amber}}>⚠️ عجز: {moneyFmt(rec.deficitAmount)}</div>
+          )}
+          {rec.notes&&(
+            <div style={{fontSize:10,color:T.sub,marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'100%'}}>
+              📝 {rec.notes}
+            </div>
+          )}
+        </div>
+      ):(
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
+          <span style={{fontSize:20,opacity:0.4}}>📭</span>
+          <button onClick={onAdd} style={{...primaryBtn,fontSize:11,padding:'4px 10px'}}>
+            <Plus size={11}/> سجّل
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// RecordsView
+// ════════════════════════════════════════════════════════════════════════════
+function RecordsView({ branches, records, onEdit, onDelete, onAdd }) {
+  const months = recentMonths(12);
+  const [activeMonth, setActiveMonth] = useState(months[0].key);
+  const [from,  setFrom]   = useState(()=>{ const d=new Date(); d.setDate(1); return d.toISOString().split('T')[0]; });
+  const [to,    setTo]     = useState(()=>{ const d=new Date(); d.setMonth(d.getMonth()+1,0); return d.toISOString().split('T')[0]; });
+  const [bid,   setBid]    = useState('all');
+  const [shiftF,setShiftF] = useState('all');
+
+  const selectMonth = (key) => {
+    const [y,m] = key.split('-').map(Number);
+    const start = new Date(y,m-1,1);
+    const end   = new Date(y,m,0);
+    setFrom(start.toISOString().split('T')[0]);
+    setTo(end.toISOString().split('T')[0]);
+    setActiveMonth(key);
+  };
+
+  const filtered = records
+    .filter(r=>{
+      if(bid!=='all'&&r.branchId!==bid) return false;
+      if(shiftF!=='all'&&r.shift!==parseInt(shiftF)) return false;
+      if(r.date<from||r.date>to) return false;
+      return true;
+    })
+    .sort((a,b)=>b.date.localeCompare(a.date)||a.shift-b.shift);
+
+  const sumPresent = filtered.reduce((s,r)=>s+(r.presentAmount||0),0);
+  const sumDeficit = filtered.reduce((s,r)=>s+(r.deficitAmount||0),0);
+
+  // Group by date
+  const grouped=[]; let lastDate=null;
+  filtered.forEach(rec=>{
+    if(rec.date!==lastDate){ grouped.push({type:'date',date:rec.date}); lastDate=rec.date; }
+    grouped.push({type:'rec',rec});
+  });
+
+  return(
+    <div>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+        <div>
+          <h2 style={{margin:0,fontSize:20,fontWeight:800}}>سجل التقفيلات</h2>
+          <p style={{margin:'3px 0 0',color:T.sub,fontSize:11}}>مراجعة وإدارة جميع التقفيلات</p>
+        </div>
+        <button onClick={()=>onAdd(null,null,null)} style={primaryBtn}><Plus size={14}/> إضافة</button>
       </div>
-      <div class="summary-card">
-        <div class="val yellow">${countDiff}</div>
-        <div class="lbl">ظروف فيها فرق 🟡</div>
+
+      {/* Month pills */}
+      <div style={{marginBottom:12}}>
+        <div style={{color:T.sub,fontSize:11,marginBottom:6,fontWeight:600}}>اختر شهراً</div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+          {months.map(m=>(
+            <button key={m.key} onClick={()=>selectMonth(m.key)} style={{
+              padding:'5px 12px',borderRadius:20,cursor:'pointer',fontSize:11,fontWeight:600,
+              fontFamily:'Cairo,sans-serif',
+              background:activeMonth===m.key?T.gold:'transparent',
+              color:activeMonth===m.key?'#0B1425':T.sub,
+              border:`1px solid ${activeMonth===m.key?T.gold:T.border}`,
+            }}>{m.label}</button>
+          ))}
+        </div>
       </div>
-    </div>`;
-}
 
-function renderSummaryOnly() {
-  const branches = getBranches();
-  const branch = branches.find(b=>b.id===currentBranch);
-  if (branch) renderSummary(getDaysInMonth(currentMonth), branch);
-}
-
-async function switchBranch(id) {
-  currentBranch = id;
-  renderTabs();
-  await renderMain();
-}
-
-function changeMonth(dir) {
-  currentMonth += dir;
-  renderMain();
-}
-
-function resetMonth() {
-  if (!confirm('مسح كل بيانات هذا الشهر؟')) return;
-  localStorage.removeItem(localKey(currentBranch, getMonthKey(currentMonth)));
-  pageData = {};
-  renderMain();
-  showToast('تم المسح 🗑');
-}
-
-// ══════════════════════════════════════════════════════
-// SETTINGS PAGE
-// ══════════════════════════════════════════════════════
-function openSettings() {
-  document.getElementById('settingsPage').style.display = 'block';
-  renderBranchesList();
-  updateFirebaseStatusUI();
-}
-
-function closeSettings() {
-  document.getElementById('settingsPage').style.display = 'none';
-  renderTabs();
-  renderMain();
-}
-
-function renderBranchesList() {
-  const branches = getBranches();
-  const list = document.getElementById('branchesList');
-  if (branches.length === 0) {
-    list.innerHTML = '<div class="empty-state" style="padding:20px"><p>لا يوجد فروع بعد</p></div>';
-    return;
-  }
-  list.innerHTML = branches.map((b,i) => `
-    <div class="branch-card">
-      <div class="branch-icon">🏪</div>
-      <div class="branch-info">
-        <div class="branch-name">${b.name}</div>
-        <div class="branch-shifts">${b.shifts.join(' · ')}</div>
+      {/* Filters */}
+      <div style={{...cardStyle,padding:'12px',marginBottom:12,display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8}}>
+        {[['من',from,setFrom],['إلى',to,setTo]].map(([lb,val,fn])=>(
+          <div key={lb}>
+            <div style={{color:T.sub,fontSize:10,marginBottom:3}}>{lb}</div>
+            <input type="date" value={val} onChange={e=>{fn(e.target.value);setActiveMonth(null);}} style={inp}/>
+          </div>
+        ))}
+        <div>
+          <div style={{color:T.sub,fontSize:10,marginBottom:3}}>الفرع</div>
+          <select value={bid} onChange={e=>setBid(e.target.value)} style={inp}>
+            <option value="all">الكل</option>
+            {branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <div style={{color:T.sub,fontSize:10,marginBottom:3}}>نوع التقفيلة</div>
+          <select value={shiftF} onChange={e=>setShiftF(e.target.value)} style={inp}>
+            <option value="all">الكل</option>
+            <option value="1">☀️ صباحي</option>
+            <option value="2">🌙 مسائي</option>
+          </select>
+        </div>
       </div>
-      <div class="branch-actions">
-        <button class="btn-icon btn-edit" onclick="openEditBranch('${b.id}')">✏️</button>
-        ${branches.length > 1 ? `<button class="btn-icon btn-delete" onclick="deleteBranch('${b.id}')">🗑</button>` : ''}
+
+      {/* Summary */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}}>
+        {[
+          ['إجمالي الموجود', moneyFmt(sumPresent), T.green],
+          ['إجمالي العجز',   moneyFmt(sumDeficit), sumDeficit>0?T.red:T.green],
+          ['عدد التقفيلات',  filtered.length, T.gold],
+          ['أيام مسجلة',    new Set(filtered.map(r=>r.date)).size, T.blue],
+        ].map(([lb,v,c])=>(
+          <div key={lb} style={{...cardStyle,padding:'10px',textAlign:'center'}}>
+            <div style={{color:T.sub,fontSize:9}}>{lb}</div>
+            <div style={{fontWeight:800,fontSize:13,color:c,marginTop:2}}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Records grouped by date */}
+      {filtered.length===0
+        ? <Empty icon={<ClipboardList size={44}/>} msg="لا توجد تقفيلات" sub="لا توجد تقفيلات في الفترة المحددة"/>
+        : <div style={{display:'flex',flexDirection:'column',gap:5}}>
+            {grouped.map((item,idx)=>{
+              if(item.type==='date') return(
+                <div key={'d'+item.date+idx} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0 2px'}}>
+                  <div style={{height:1,background:T.border,flex:1}}/>
+                  <span style={{color:T.sub,fontSize:12,fontWeight:700,whiteSpace:'nowrap'}}>{dateFmt(item.date)}</span>
+                  <div style={{height:1,background:T.border,flex:1}}/>
+                </div>
+              );
+              const {rec}=item;
+              const b  = branches.find(x=>x.id===rec.branchId);
+              const st = recStatus(rec);
+              const s  = st?ST[st]:null;
+              const ts = rec.updatedAt||rec.createdAt;
+              return(
+                <div key={rec.id} style={{...cardStyle,padding:'11px 12px',display:'flex',gap:8,
+                  borderRight:`4px solid ${s?.color||T.dim}`,
+                  background:s?`${s.bg}`:'transparent',
+                }}>
+                  <div style={{flex:1,minWidth:0}}>
+                    {/* Row 1 */}
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:7,flexWrap:'wrap',gap:5}}>
+                      <div style={{display:'flex',alignItems:'center',gap:7}}>
+                        <span style={{fontWeight:800,color:b?.color,fontSize:13}}>{b?.name||'محذوف'}</span>
+                        <span style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:20,padding:'2px 8px',fontSize:10,color:T.sub}}>
+                          {rec.shift===1?'☀️ صباحي':'🌙 مسائي'}
+                        </span>
+                        {s&&<span style={{background:s.bg,border:`1px solid ${s.border}`,borderRadius:20,padding:'2px 9px',fontSize:10,color:s.color,fontWeight:700}}>
+                          {s.icon} {s.label}
+                        </span>}
+                      </div>
+                      <div style={{display:'flex',alignItems:'center',gap:5,color:T.dim,fontSize:10}}>
+                        {rec.envelopeReceived
+                          ? <><Mail size={11} color={T.green}/><span style={{color:T.green}}>وصل</span></>
+                          : <><MailX size={11} color={T.red}/><span style={{color:T.red}}>لم يصل</span></>
+                        }
+                        {ts&&<span>· {timeFmt(ts)}</span>}
+                      </div>
+                    </div>
+                    {/* Row 2: amounts */}
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:rec.notes?6:0}}>
+                      <div style={{background:T.surface,borderRadius:8,padding:'6px 9px'}}>
+                        <div style={{color:T.sub,fontSize:9}}>الموجود</div>
+                        <div style={{fontWeight:700,fontSize:13,color:T.green}}>{moneyFmt(rec.presentAmount)}</div>
+                      </div>
+                      <div style={{background:rec.hasDeficit?T.amber+'15':T.surface,border:rec.hasDeficit?`1px solid ${T.amber}50`:'none',borderRadius:8,padding:'6px 9px'}}>
+                        <div style={{color:T.sub,fontSize:9}}>العجز</div>
+                        <div style={{fontWeight:700,fontSize:13,color:rec.hasDeficit?T.amber:T.sub}}>
+                          {rec.hasDeficit&&rec.deficitAmount>0?moneyFmt(rec.deficitAmount):'لا يوجد ✅'}
+                        </div>
+                      </div>
+                    </div>
+                    {rec.notes&&<div style={{color:T.sub,fontSize:11,marginTop:3}}>📝 {rec.notes}</div>}
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:5,flexShrink:0,justifyContent:'center'}}>
+                    <button onClick={()=>onEdit(rec)} style={iconBtn(false)}><Edit2 size={13}/></button>
+                    <button onClick={()=>onDelete(rec.id)} style={iconBtn(true)}><Trash2 size={13}/></button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+      }
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// BranchesView
+// ════════════════════════════════════════════════════════════════════════════
+function BranchesView({ branches, records, onAdd, onEdit, onDelete }) {
+  return(
+    <div>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18}}>
+        <h2 style={{margin:0,fontSize:20,fontWeight:800}}>الفروع</h2>
+        <button onClick={onAdd} style={primaryBtn}><Plus size={14}/> فرع جديد</button>
+      </div>
+      {branches.length===0
+        ? <Empty icon={<Store size={44}/>} msg="لا توجد فروع" sub="أضف أول فرع الآن"/>
+        : <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:14}}>
+            {branches.map(b=>{
+              const recs = records.filter(r=>r.branchId===b.id);
+              const rev  = recs.reduce((s,r)=>s+(r.presentAmount||0),0);
+              const def  = recs.reduce((s,r)=>s+(r.deficitAmount||0),0);
+              return(
+                <div key={b.id} style={cardStyle}>
+                  <div style={{background:`${b.color}13`,padding:'14px',borderBottom:`1px solid ${T.border}`}}>
+                    <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <div style={{width:40,height:40,borderRadius:'50%',background:`${b.color}25`,border:`2px solid ${b.color}50`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                          <Coffee size={19} color={b.color}/>
+                        </div>
+                        <div>
+                          <div style={{fontWeight:800,color:b.color,fontSize:14}}>{b.name}</div>
+                          <div style={{color:T.sub,fontSize:11,marginTop:2}}>
+                            {b.shifts===1?'☀️ تقفيلة واحدة':'☀️🌙 تقفيلتان'}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{display:'flex',gap:5}}>
+                        <button onClick={()=>onEdit(b)} style={iconBtn(false)}><Edit2 size={13}/></button>
+                        <button onClick={()=>onDelete(b.id)} style={iconBtn(true)}><Trash2 size={13}/></button>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr'}}>
+                    {[['السجلات',recs.length,T.gold],
+                      ['الموجود',`${(rev/1000).toFixed(1)}K`,T.green],
+                      ['العجز',`${(def/1000).toFixed(1)}K`,def>0?T.red:T.green]
+                    ].map(([lb,v,c],i)=>(
+                      <div key={lb} style={{padding:'11px 8px',textAlign:'center',borderRight:i<2?`1px solid ${T.border}`:'none'}}>
+                        <div style={{fontWeight:800,color:c,fontSize:14}}>{v}</div>
+                        <div style={{color:T.sub,fontSize:10,marginTop:2}}>{lb}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+      }
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// UTILITY COMPONENTS
+// ════════════════════════════════════════════════════════════════════════════
+function Modal({ title, children, onClose }) {
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.82)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:12}}>
+      <div dir="rtl" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,width:'100%',maxWidth:460,maxHeight:'92vh',overflow:'auto'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 16px',borderBottom:`1px solid ${T.border}`}}>
+          <h3 style={{margin:0,fontSize:15,fontWeight:800,fontFamily:'Cairo,sans-serif'}}>{title}</h3>
+          <button onClick={onClose} style={{background:'transparent',border:'none',color:T.sub,cursor:'pointer',display:'flex'}}><X size={18}/></button>
+        </div>
+        <div style={{padding:'16px'}}>{children}</div>
       </div>
     </div>
-  `).join('');
+  );
 }
-
-function deleteBranch(id) {
-  if (!confirm('حذف هذا الفرع؟ بياناته ستبقى محفوظة.')) return;
-  const branches = getBranches().filter(b => b.id !== id);
-  saveBranches(branches);
-  if (currentBranch === id) currentBranch = branches[0]?.id || null;
-  renderBranchesList();
-  showToast('تم حذف الفرع');
+function Fld({ label, children }) {
+  return(
+    <div>
+      <label style={{display:'block',color:T.sub,fontSize:11,fontWeight:700,marginBottom:5,fontFamily:'Cairo,sans-serif'}}>{label}</label>
+      {children}
+    </div>
+  );
 }
-
-// ══════════════════════════════════════════════════════
-// BRANCH MODAL
-// ══════════════════════════════════════════════════════
-function openAddBranch() {
-  editingBranchId = null;
-  document.getElementById('modalTitle').textContent = 'إضافة فرع';
-  document.getElementById('branchNameInput').value = '';
-  buildShiftsFields(['صباحي ☀️']);
-  document.getElementById('branchModal').classList.add('open');
+function ModalBtn({ primary, children, onClick }) {
+  return(
+    <button onClick={onClick} style={{
+      flex:1,padding:'11px',borderRadius:9,cursor:'pointer',
+      border:primary?'none':`1px solid ${T.border}`,
+      background:primary?T.gold:'transparent',
+      color:primary?'#0B1425':T.sub,
+      fontFamily:'Cairo,sans-serif',fontWeight:primary?700:500,fontSize:13,
+    }}>{children}</button>
+  );
 }
-
-function openEditBranch(id) {
-  editingBranchId = id;
-  const branch = getBranches().find(b => b.id === id);
-  document.getElementById('modalTitle').textContent = 'تعديل الفرع';
-  document.getElementById('branchNameInput').value = branch.name;
-  buildShiftsFields(branch.shifts);
-  document.getElementById('branchModal').classList.add('open');
+function Empty({ icon, msg, sub }) {
+  return(
+    <div style={{textAlign:'center',padding:'60px 0',color:T.dim}}>
+      <div style={{marginBottom:10,display:'flex',justifyContent:'center',opacity:0.4}}>{icon}</div>
+      <div style={{fontSize:15,fontWeight:700,marginBottom:4,color:T.sub}}>{msg}</div>
+      <div style={{fontSize:12}}>{sub}</div>
+    </div>
+  );
 }
-
-function buildShiftsFields(shifts) {
-  const list = document.getElementById('shiftsList');
-  list.innerHTML = '';
-  shifts.forEach(s => addShiftField(s));
-}
-
-function addShiftField(value = '') {
-  const list = document.getElementById('shiftsList');
-  const div = document.createElement('div');
-  div.className = 'shift-row';
-  div.innerHTML = `
-    <input type="text" class="form-input shift-input" placeholder="اسم الشيفت (مثال: صباحي ☀️)" value="${value}">
-    <button class="remove-shift" onclick="this.parentElement.remove()">×</button>
-  `;
-  list.appendChild(div);
-}
-
-function closeModal() {
-  document.getElementById('branchModal').classList.remove('open');
-}
-
-function saveBranch() {
-  const name = document.getElementById('branchNameInput').value.trim();
-  if (!name) { alert('أدخل اسم الفرع'); return; }
-
-  const shiftInputs = document.querySelectorAll('.shift-input');
-  const shifts = Array.from(shiftInputs).map(i=>i.value.trim()).filter(Boolean);
-  if (shifts.length === 0) { alert('أضف شيفت واحد على الأقل'); return; }
-
-  const branches = getBranches();
-
-  if (editingBranchId) {
-    // Edit existing
-    const idx = branches.findIndex(b => b.id === editingBranchId);
-    if (idx >= 0) { branches[idx].name = name; branches[idx].shifts = shifts; }
-  } else {
-    // Add new — generate unique id
-    const id = 'branch_' + Date.now();
-    branches.push({ id, name, shifts });
-    currentBranch = id;
-  }
-
-  saveBranches(branches);
-  closeModal();
-  renderBranchesList();
-  showToast(editingBranchId ? 'تم التعديل ✓' : 'تمت الإضافة ✓');
-}
-
-// ══════════════════════════════════════════════════════
-// TOAST
-// ══════════════════════════════════════════════════════
-let toastTimer = null;
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
-}
-
-// ══════════════════════════════════════════════════════
-// CLOSE MODAL ON OVERLAY CLICK
-// ══════════════════════════════════════════════════════
-document.getElementById('branchModal').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
-});
-
-// ══════════════════════════════════════════════════════
-// START
-// ══════════════════════════════════════════════════════
-// Wait for Firebase module to possibly initialize
-setTimeout(init, 300);
-</script>
-</body>
-</html>
