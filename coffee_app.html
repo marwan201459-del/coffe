@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="الكوفي">
+<title>☕ سجل الكوفي</title>
+
+<!-- ══════════════════════════════════════════
+     🔥 FIREBASE CONFIG
+     1. روح https://console.firebase.google.com
+     2. أنشئ مشروع جديد
+     3. Project Settings → Your Apps → Web App
+     4. انسخ الـ config وضعه هنا
+     ══════════════════════════════════════════ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // ▼▼▼ ضع config الخاص بك هنا ▼▼▼
+  const firebaseConfig = {
+    apiKey: "REPLACE_API_KEY",
+    authDomain: "REPLACE_AUTH_DOMAIN",
+    projectId: "REPLACE_PROJECT_ID",
+    storageBucket: "REPLACE_STORAGE_BUCKET",
+    messagingSenderId: "REPLACE_SENDER_ID",
+    appId: "REPLACE_APP_ID"
+  };
+  // ▲▲▲ ضع config الخاص بك هنا ▲▲▲
+
+  let db = null;
+  let firebaseReady = false;
+
+  try {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    firebaseReady = true;
+  } catch(e) {
+    console.warn("Firebase not configured, using localStorage only.");
+  }
+
+  // Expose to global scope
+  window._firebase = { db, firebaseReady, doc, setDoc, getDoc, collection, getDocs, deleteDoc };
+</script>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --brown-dark: #2C1A0E;
+  --brown-mid: #6F3D0F;
+  --brown-light: #C8956C;
+  --cream: #FFF8F0;
+  --cream2: #F5EDE0;
+  --red: #D32F2F;
+  --red-bg: #FFEBEE;
+  --yellow: #F59F00;
+  --yellow-bg: #FFF9C4;
+  --green: #2E7D32;
+  --green-bg: #E8F5E9;
+  --white: #FFFFFF;
+  --blue: #1565C0;
+  --blue-bg: #E3F2FD;
+}
+
+body {
+  font-family: -apple-system, 'SF Pro Text', Arial, sans-serif;
+  background: var(--cream2);
+  color: var(--brown-dark);
+  min-height: 100vh;
+  padding-bottom: 40px;
+}
+
+/* ── HEADER ── */
+.app-header {
+  background: var(--brown-dark);
+  color: white;
+  padding: 14px 16px 10px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.app-header h1 { font-size: 20px; font-weight: 700; }
+.app-header .subtitle { font-size: 11px; color: var(--brown-light); margin-top: 2px; }
+.settings-icon-btn {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1);
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── SYNC STATUS ── */
+.sync-bar {
+  background: var(--brown-mid);
+  color: rgba(255,255,255,0.85);
+  font-size: 11px;
+  padding: 4px 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sync-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #aaa;
+  flex-shrink: 0;
+}
+.sync-dot.ok { background: #69f0ae; }
+.sync-dot.err { background: #ff5252; }
+.sync-dot.syncing { background: var(--yellow); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── BRANCH TABS ── */
+.tabs-wrap {
+  background: var(--brown-mid);
+  border-bottom: 2px solid var(--brown-light);
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs-wrap::-webkit-scrollbar { display: none; }
+.tab {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  text-align: center;
+  color: rgba(255,255,255,0.55);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: none;
+  white-space: nowrap;
+}
+.tab.active {
+  color: white;
+  background: rgba(255,255,255,0.15);
+  border-bottom: 2px solid var(--brown-light);
+  margin-bottom: -2px;
+}
+
+/* ── MONTH NAV ── */
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--cream);
+  border-bottom: 1px solid var(--brown-light);
+}
+.month-nav button {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--brown-light);
+  background: white;
+  color: var(--brown-mid);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.month-label { font-size: 15px; font-weight: 700; color: var(--brown-dark); }
+
+/* ── LEGEND ── */
+.legend {
+  display: flex;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--cream);
+  border-bottom: 1px solid #e0cdb8;
+  flex-wrap: wrap;
+}
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--brown-mid); font-weight: 600; }
+.legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+.dot-normal { background: #e0cdb8; }
+.dot-yellow { background: var(--yellow); }
+.dot-red { background: var(--red); }
+
+/* ── TABLE ── */
+.table-wrap { overflow-x: auto; padding: 12px; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(44,26,14,0.1);
+  font-size: 13px;
+}
+thead tr { background: var(--brown-dark); color: white; }
+thead th {
+  padding: 10px 6px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid #f0e8de; transition: background 0.15s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr.day-start td { border-top: 2px solid #e0cdb8; }
+
+td {
+  padding: 8px 5px;
+  text-align: center;
+  vertical-align: middle;
+}
+.day-label { font-size: 11px; color: var(--brown-mid); font-weight: 600; }
+.shift-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.shift-s { background: #FFF9C4; color: #7A5800; }
+.shift-e { background: #E8F5E9; color: #1B5E20; }
+.shift-x { background: #EDE7F6; color: #4A148C; }
+
+.cash-input, .diff-input {
+  width: 70px;
+  padding: 6px 4px;
+  border: 1.5px solid #ddd;
+  border-radius: 7px;
+  text-align: center;
+  font-size: 13px;
+  font-family: inherit;
+  background: #fafafa;
+  color: var(--brown-dark);
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+}
+.cash-input:focus, .diff-input:focus {
+  outline: none;
+  border-color: var(--brown-mid);
+  background: white;
+}
+
+.recv-btn {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  border: 2px solid #ddd;
+  background: #f5f5f5;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  margin: 0 auto;
+}
+.recv-btn.received { background: var(--green-bg); border-color: var(--green); }
+.recv-btn.not-received { background: var(--red-bg); border-color: var(--red); }
+
+tr.row-yellow { background: var(--yellow-bg) !important; }
+tr.row-yellow td { color: #4A3000; }
+tr.row-yellow .cash-input, tr.row-yellow .diff-input { border-color: var(--yellow); background: #fffde7; }
+tr.row-red { background: var(--red-bg) !important; }
+tr.row-red td { color: #7f0000; }
+tr.row-red .cash-input, tr.row-red .diff-input { border-color: #ef9a9a; background: #fff5f5; }
+
+/* ── SUMMARY ── */
+.summary {
+  margin: 12px;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(44,26,14,0.1);
+}
+.summary-header {
+  background: var(--brown-mid);
+  color: white;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #f0e8de;
+}
+.summary-card {
+  background: white;
+  padding: 12px;
+  text-align: center;
+}
+.summary-card .val {
+  font-size: 20px; font-weight: 800;
+  color: var(--brown-dark);
+  direction: ltr;
+}
+.summary-card .val.red { color: var(--red); }
+.summary-card .val.yellow { color: var(--yellow); }
+.summary-card .lbl { font-size: 11px; color: var(--brown-mid); margin-top: 3px; font-weight: 600; }
+
+/* ── RESET BTN ── */
+.reset-btn {
+  display: block;
+  margin: 12px auto;
+  padding: 10px 24px;
+  background: var(--brown-mid);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ══════════════════════════════════════════
+   SETTINGS PAGE
+   ══════════════════════════════════════════ */
+#settingsPage {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--cream2);
+  z-index: 300;
+  overflow-y: auto;
+}
+
+.settings-topbar {
+  background: var(--brown-dark);
+  color: white;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.back-btn {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  border: 1.5px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1);
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.settings-topbar h2 { font-size: 18px; font-weight: 700; }
+
+.settings-section {
+  margin: 16px 12px 0;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(44,26,14,0.08);
+}
+.settings-section-title {
+  background: var(--cream);
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brown-mid);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #e8ddd0;
+}
+
+/* Branch cards */
+.branch-card {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid #f0e8de;
+  gap: 10px;
+}
+.branch-card:last-child { border-bottom: none; }
+.branch-icon { font-size: 22px; }
+.branch-info { flex: 1; }
+.branch-name { font-size: 15px; font-weight: 700; color: var(--brown-dark); }
+.branch-shifts { font-size: 11px; color: var(--brown-mid); margin-top: 2px; }
+.branch-actions { display: flex; gap: 6px; }
+.btn-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-edit { background: var(--blue-bg); color: var(--blue); }
+.btn-delete { background: var(--red-bg); color: var(--red); }
+
+.add-branch-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--brown-mid);
+  font-size: 14px;
+  font-weight: 700;
+  border-top: 1px solid #f0e8de;
+}
+.add-branch-btn .plus {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--green-bg);
+  color: var(--green);
+  font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── FIREBASE CONFIG BOX ── */
+.config-box {
+  padding: 14px;
+}
+.config-box p {
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+.config-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.config-status.connected { background: var(--green-bg); color: var(--green); }
+.config-status.disconnected { background: var(--red-bg); color: var(--red); }
+
+/* ══════════════════════════════════════════
+   MODAL (Add/Edit Branch)
+   ══════════════════════════════════════════ */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 500;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: white;
+  border-radius: 20px 20px 0 0;
+  padding: 20px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: slideUp 0.25s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.modal h3 { font-size: 18px; font-weight: 800; color: var(--brown-dark); margin-bottom: 16px; }
+
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 12px; font-weight: 700; color: var(--brown-mid); margin-bottom: 6px; display: block; }
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--brown-dark);
+  background: #fafafa;
+}
+.form-input:focus { outline: none; border-color: var(--brown-mid); background: white; }
+
+.shifts-list { display: flex; flex-direction: column; gap: 8px; }
+.shift-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.shift-row .form-input { flex: 1; }
+.remove-shift {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: var(--red-bg);
+  color: var(--red);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.add-shift-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+.btn-save {
+  flex: 1;
+  padding: 12px;
+  background: var(--brown-mid);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-cancel {
+  flex: 1;
+  padding: 12px;
+  background: var(--cream2);
+  color: var(--brown-mid);
+  border: 1.5px solid var(--brown-light);
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--brown-dark);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 999;
+  transition: transform 0.3s;
+  white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--brown-mid);
+}
+.empty-state .emoji { font-size: 48px; }
+.empty-state p { margin-top: 10px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- ══════ MAIN PAGE ══════ -->
+<div id="mainPage">
+  <div class="app-header">
+    <div>
+      <h1>☕ سجل الكوفي</h1>
+      <div class="subtitle" id="headerSubtitle">جاري التحميل...</div>
+    </div>
+    <button class="settings-icon-btn" onclick="openSettings()">⚙️</button>
+  </div>
+
+  <div class="sync-bar">
+    <div class="sync-dot" id="syncDot"></div>
+    <span id="syncText">بدون اتصال Firebase</span>
+  </div>
+
+  <div class="tabs-wrap" id="branchTabs"></div>
+
+  <div class="month-nav">
+    <button onclick="changeMonth(-1)">‹</button>
+    <div class="month-label" id="monthLabel"></div>
+    <button onclick="changeMonth(1)">›</button>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot dot-normal"></div> عادي</div>
+    <div class="legend-item"><div class="legend-dot dot-yellow"></div> في فرق</div>
+    <div class="legend-item"><div class="legend-dot dot-red"></div> ما استُلم</div>
+  </div>
+
+  <div class="table-wrap" id="tableWrap"></div>
+  <div class="summary" id="summaryBox"></div>
+  <button class="reset-btn" onclick="resetMonth()">🗑 مسح بيانات هذا الشهر</button>
+</div>
+
+<!-- ══════ SETTINGS PAGE ══════ -->
+<div id="settingsPage">
+  <div class="settings-topbar">
+    <button class="back-btn" onclick="closeSettings()">‹</button>
+    <h2>⚙️ الإعدادات</h2>
+  </div>
+
+  <!-- Branches -->
+  <div class="settings-section">
+    <div class="settings-section-title">🏪 الفروع</div>
+    <div id="branchesList"></div>
+    <button class="add-branch-btn" onclick="openAddBranch()">
+      <div class="plus">+</div>
+      إضافة فرع جديد
+    </button>
+  </div>
+
+  <!-- Firebase Status -->
+  <div class="settings-section" style="margin-bottom:16px">
+    <div class="settings-section-title">🔥 Firebase (التخزين السحابي)</div>
+    <div class="config-box">
+      <div class="config-status" id="firebaseStatus">
+        <span>○</span> <span>جاري الفحص...</span>
+      </div>
+      <p>لتفعيل التخزين السحابي، افتح ملف HTML وابحث عن <strong>firebaseConfig</strong> وضع بيانات مشروعك من Firebase Console.</p>
+      <p style="margin-top:6px; font-size:12px; color:#888;">
+        console.firebase.google.com → مشروعك → Project Settings → Your Apps → Web App
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ MODAL: ADD/EDIT BRANCH ══════ -->
+<div class="modal-overlay" id="branchModal">
+  <div class="modal">
+    <h3 id="modalTitle">إضافة فرع</h3>
+    <div class="form-group">
+      <label class="form-label">اسم الفرع</label>
+      <input type="text" class="form-input" id="branchNameInput" placeholder="مثال: Come True">
+    </div>
+    <div class="form-group">
+      <label class="form-label">الشيفتات</label>
+      <div class="shifts-list" id="shiftsList"></div>
+      <button class="add-shift-btn" onclick="addShiftField()">+ إضافة شيفت</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-save" onclick="saveBranch()">حفظ</button>
+      <button class="btn-cancel" onclick="closeModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let currentBranch = null;   // branch id
+let currentMonth  = 0;      // offset from today
+let pageData      = {};     // current month's rows
+let editingBranchId = null; // null = adding new
+
+// Default branches (used if nothing in storage)
+const DEFAULT_BRANCHES = [
+  { id: 'come_true',    name: 'Come True',    shifts: ['صباحي ☀️','مسائي 🌙'] },
+  { id: 'coffee_maker', name: 'Coffee Maker', shifts: ['شيفت 🌟'] }
+];
+
+// ══════════════════════════════════════════════════════
+// STORAGE HELPERS — localStorage + Firebase
+// ══════════════════════════════════════════════════════
+function getBranches() {
+  const raw = localStorage.getItem('cf_branches');
+  return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_BRANCHES));
+}
+
+function saveBranches(branches) {
+  localStorage.setItem('cf_branches', JSON.stringify(branches));
+  syncBranchesToFirebase(branches);
+}
+
+function getMonthKey(offset) {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + offset);
+  return `${d.getFullYear()}_${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function getMonthLabel(offset) {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + offset);
+  const months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو',
+                  'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  return `${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function getDaysInMonth(offset) {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + offset + 1);
+  d.setDate(0);
+  return d.getDate();
+}
+
+function localKey(branchId, monthKey) {
+  return `cf_${branchId}_${monthKey}`;
+}
+
+function loadMonthData(branchId, monthKey) {
+  const raw = localStorage.getItem(localKey(branchId, monthKey));
+  return raw ? JSON.parse(raw) : {};
+}
+
+function saveMonthData(branchId, monthKey, data) {
+  localStorage.setItem(localKey(branchId, monthKey), JSON.stringify(data));
+  syncMonthToFirebase(branchId, monthKey, data);
+}
+
+// ══════════════════════════════════════════════════════
+// FIREBASE SYNC
+// ══════════════════════════════════════════════════════
+function isFirebaseReady() {
+  return window._firebase && window._firebase.firebaseReady;
+}
+
+function setSyncStatus(state) {
+  // state: 'ok' | 'err' | 'syncing' | 'off'
+  const dot  = document.getElementById('syncDot');
+  const text = document.getElementById('syncText');
+  if (!dot) return;
+  dot.className = 'sync-dot' + (state === 'ok' ? ' ok' : state === 'err' ? ' err' : state === 'syncing' ? ' syncing' : '');
+  text.textContent = state === 'ok' ? 'محفوظ سحابياً ✓'
+                   : state === 'err' ? 'خطأ في الحفظ السحابي'
+                   : state === 'syncing' ? 'جاري الحفظ...'
+                   : 'بدون اتصال Firebase';
+}
+
+async function syncMonthToFirebase(branchId, monthKey, data) {
+  if (!isFirebaseReady()) return;
+  const { db, doc, setDoc } = window._firebase;
+  try {
+    setSyncStatus('syncing');
+    await setDoc(doc(db, 'coffee', `${branchId}_${monthKey}`), { data: JSON.stringify(data) });
+    setSyncStatus('ok');
+  } catch(e) {
+    console.error(e);
+    setSyncStatus('err');
+  }
+}
+
+async function syncBranchesToFirebase(branches) {
+  if (!isFirebaseReady()) return;
+  const { db, doc, setDoc } = window._firebase;
+  try {
+    await setDoc(doc(db, 'coffee', '__branches__'), { data: JSON.stringify(branches) });
+  } catch(e) { console.error(e); }
+}
+
+async function loadFromFirebase(branchId, monthKey) {
+  if (!isFirebaseReady()) return null;
+  const { db, doc, getDoc } = window._firebase;
+  try {
+    const snap = await getDoc(doc(db, 'coffee', `${branchId}_${monthKey}`));
+    if (snap.exists()) return JSON.parse(snap.data().data);
+  } catch(e) { console.error(e); }
+  return null;
+}
+
+async function loadBranchesFromFirebase() {
+  if (!isFirebaseReady()) return null;
+  const { db, doc, getDoc } = window._firebase;
+  try {
+    const snap = await getDoc(doc(db, 'coffee', '__branches__'));
+    if (snap.exists()) return JSON.parse(snap.data().data);
+  } catch(e) { console.error(e); }
+  return null;
+}
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+async function init() {
+  // Try to load branches from Firebase first
+  const fbBranches = await loadBranchesFromFirebase();
+  if (fbBranches && fbBranches.length > 0) {
+    localStorage.setItem('cf_branches', JSON.stringify(fbBranches));
+  }
+
+  const branches = getBranches();
+  if (!currentBranch || !branches.find(b => b.id === currentBranch)) {
+    currentBranch = branches[0].id;
+  }
+
+  updateFirebaseStatusUI();
+  renderTabs();
+  await renderMain();
+}
+
+function updateFirebaseStatusUI() {
+  const status = document.getElementById('firebaseStatus');
+  if (!status) return;
+  if (isFirebaseReady()) {
+    status.className = 'config-status connected';
+    status.innerHTML = '<span>✅</span> <span>متصل بـ Firebase</span>';
+    setSyncStatus('ok');
+  } else {
+    status.className = 'config-status disconnected';
+    status.innerHTML = '<span>❌</span> <span>غير متصل — يحفظ محلياً فقط</span>';
+    setSyncStatus('off');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER TABS
+// ══════════════════════════════════════════════════════
+function renderTabs() {
+  const branches = getBranches();
+  const wrap = document.getElementById('branchTabs');
+  wrap.innerHTML = branches.map(b =>
+    `<button class="tab${b.id === currentBranch ? ' active' : ''}"
+      onclick="switchBranch('${b.id}')">${b.name}</button>`
+  ).join('');
+
+  // Update header subtitle
+  const active = branches.find(b => b.id === currentBranch);
+  if (active) {
+    document.getElementById('headerSubtitle').textContent = active.shifts.join('  |  ');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER MAIN TABLE
+// ══════════════════════════════════════════════════════
+async function renderMain() {
+  const branches = getBranches();
+  const branch = branches.find(b => b.id === currentBranch);
+  if (!branch) {
+    document.getElementById('tableWrap').innerHTML =
+      '<div class="empty-state"><div class="emoji">🏪</div><p>لا يوجد فروع — أضف فرع من الإعدادات ⚙️</p></div>';
+    document.getElementById('summaryBox').innerHTML = '';
+    return;
+  }
+
+  document.getElementById('monthLabel').textContent = getMonthLabel(currentMonth);
+  const monthKey = getMonthKey(currentMonth);
+
+  // Load from Firebase if available, else local
+  const fbData = await loadFromFirebase(currentBranch, monthKey);
+  if (fbData) {
+    localStorage.setItem(localKey(currentBranch, monthKey), JSON.stringify(fbData));
+    if (isFirebaseReady()) setSyncStatus('ok');
+  }
+  pageData = loadMonthData(currentBranch, monthKey);
+
+  const days = getDaysInMonth(currentMonth);
+  let html = `<table>
+    <thead><tr>
+      <th>اليوم</th><th>الشيفت</th><th>الكاش</th><th>الفرق</th><th>الاستلام</th>
+    </tr></thead><tbody>`;
+
+  const shiftColors = ['shift-s','shift-e','shift-x'];
+
+  for (let day = 1; day <= days; day++) {
+    branch.shifts.forEach((shift, si) => {
+      const rk = `${day}_${si}`;
+      const row = pageData[rk] || { cash:'', diff:'', recv:'none' };
+      const hasDiff = row.diff !== '' && row.diff !== '0' && row.diff !== 0;
+      const isNo = row.recv === 'no';
+      const rowClass = isNo ? 'row-red' : (hasDiff ? 'row-yellow' : '');
+      const isFirst = si === 0;
+      const recvIcon = row.recv==='yes' ? '✅' : row.recv==='no' ? '❌' : '○';
+      const recvClass = row.recv==='yes' ? 'received' : row.recv==='no' ? 'not-received' : '';
+      const sc = shiftColors[si % shiftColors.length];
+
+      html += `<tr class="${rowClass}${isFirst ? ' day-start' : ''}" id="row_${day}_${si}">
+        <td>${isFirst ? `<div class="day-label">${day}</div>` : ''}</td>
+        <td><span class="shift-badge ${sc}">${shift}</span></td>
+        <td><input class="cash-input" type="number" inputmode="numeric" placeholder="0"
+          value="${row.cash}"
+          onchange="updateRow(${day},${si},'cash',this.value)"
+          onblur="updateRow(${day},${si},'cash',this.value)"></td>
+        <td><input class="diff-input" type="number" inputmode="numeric" placeholder="0"
+          value="${row.diff}"
+          onchange="updateRow(${day},${si},'diff',this.value)"
+          onblur="updateRow(${day},${si},'diff',this.value)"></td>
+        <td><button class="recv-btn ${recvClass}" onclick="toggleRecv(${day},${si})">${recvIcon}</button></td>
+      </tr>`;
+    });
+  }
+  html += '</tbody></table>';
+  document.getElementById('tableWrap').innerHTML = html;
+  renderSummary(days, branch);
+}
+
+// ══════════════════════════════════════════════════════
+// ROW UPDATES
+// ══════════════════════════════════════════════════════
+function updateRow(day, si, field, val) {
+  const rk = `${day}_${si}`;
+  if (!pageData[rk]) pageData[rk] = { cash:'', diff:'', recv:'none' };
+  pageData[rk][field] = val;
+  saveMonthData(currentBranch, getMonthKey(currentMonth), pageData);
+  refreshRow(day, si);
+  renderSummaryOnly();
+}
+
+function toggleRecv(day, si) {
+  const rk = `${day}_${si}`;
+  if (!pageData[rk]) pageData[rk] = { cash:'', diff:'', recv:'none' };
+  const cur = pageData[rk].recv;
+  pageData[rk].recv = cur==='none' ? 'yes' : cur==='yes' ? 'no' : 'none';
+  saveMonthData(currentBranch, getMonthKey(currentMonth), pageData);
+  refreshRow(day, si);
+  renderSummaryOnly();
+}
+
+function refreshRow(day, si) {
+  const rk = `${day}_${si}`;
+  const row = pageData[rk] || { cash:'', diff:'', recv:'none' };
+  const tr = document.getElementById(`row_${day}_${si}`);
+  if (!tr) return;
+  const hasDiff = row.diff !== '' && row.diff !== '0' && row.diff !== 0;
+  const isNo = row.recv === 'no';
+  tr.className = tr.className.replace(/row-red|row-yellow/g,'').trim();
+  if (isNo) tr.classList.add('row-red');
+  else if (hasDiff) tr.classList.add('row-yellow');
+  const btn = tr.querySelector('.recv-btn');
+  btn.className = 'recv-btn';
+  if (row.recv==='yes') { btn.classList.add('received'); btn.textContent='✅'; }
+  else if (row.recv==='no') { btn.classList.add('not-received'); btn.textContent='❌'; }
+  else btn.textContent='○';
+}
+
+function renderSummary(days, branch) {
+  let totalCash=0, totalDiff=0, countNo=0, countDiff=0;
+  for (let d=1;d<=days;d++) {
+    branch.shifts.forEach((_,si) => {
+      const row = pageData[`${d}_${si}`] || {};
+      if (row.cash) totalCash += parseFloat(row.cash)||0;
+      if (row.diff && row.diff!=0) { totalDiff += parseFloat(row.diff)||0; countDiff++; }
+      if (row.recv==='no') countNo++;
+    });
+  }
+  document.getElementById('summaryBox').innerHTML = `
+    <div class="summary-header">📊 ملخص ${getMonthLabel(currentMonth)}</div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="val">${totalCash.toLocaleString('ar-SA')}</div>
+        <div class="lbl">إجمالي الكاش (ريال)</div>
+      </div>
+      <div class="summary-card">
+        <div class="val ${totalDiff<0?'red':'yellow'}">${totalDiff.toLocaleString('ar-SA')}</div>
+        <div class="lbl">إجمالي الفروق (ريال)</div>
+      </div>
+      <div class="summary-card">
+        <div class="val red">${countNo}</div>
+        <div class="lbl">ظروف غير مستلمة ❌</div>
+      </div>
+      <div class="summary-card">
+        <div class="val yellow">${countDiff}</div>
+        <div class="lbl">ظروف فيها فرق 🟡</div>
+      </div>
+    </div>`;
+}
+
+function renderSummaryOnly() {
+  const branches = getBranches();
+  const branch = branches.find(b=>b.id===currentBranch);
+  if (branch) renderSummary(getDaysInMonth(currentMonth), branch);
+}
+
+async function switchBranch(id) {
+  currentBranch = id;
+  renderTabs();
+  await renderMain();
+}
+
+function changeMonth(dir) {
+  currentMonth += dir;
+  renderMain();
+}
+
+function resetMonth() {
+  if (!confirm('مسح كل بيانات هذا الشهر؟')) return;
+  localStorage.removeItem(localKey(currentBranch, getMonthKey(currentMonth)));
+  pageData = {};
+  renderMain();
+  showToast('تم المسح 🗑');
+}
+
+// ══════════════════════════════════════════════════════
+// SETTINGS PAGE
+// ══════════════════════════════════════════════════════
+function openSettings() {
+  document.getElementById('settingsPage').style.display = 'block';
+  renderBranchesList();
+  updateFirebaseStatusUI();
+}
+
+function closeSettings() {
+  document.getElementById('settingsPage').style.display = 'none';
+  renderTabs();
+  renderMain();
+}
+
+function renderBranchesList() {
+  const branches = getBranches();
+  const list = document.getElementById('branchesList');
+  if (branches.length === 0) {
+    list.innerHTML = '<div class="empty-state" style="padding:20px"><p>لا يوجد فروع بعد</p></div>';
+    return;
+  }
+  list.innerHTML = branches.map((b,i) => `
+    <div class="branch-card">
+      <div class="branch-icon">🏪</div>
+      <div class="branch-info">
+        <div class="branch-name">${b.name}</div>
+        <div class="branch-shifts">${b.shifts.join(' · ')}</div>
+      </div>
+      <div class="branch-actions">
+        <button class="btn-icon btn-edit" onclick="openEditBranch('${b.id}')">✏️</button>
+        ${branches.length > 1 ? `<button class="btn-icon btn-delete" onclick="deleteBranch('${b.id}')">🗑</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function deleteBranch(id) {
+  if (!confirm('حذف هذا الفرع؟ بياناته ستبقى محفوظة.')) return;
+  const branches = getBranches().filter(b => b.id !== id);
+  saveBranches(branches);
+  if (currentBranch === id) currentBranch = branches[0]?.id || null;
+  renderBranchesList();
+  showToast('تم حذف الفرع');
+}
+
+// ══════════════════════════════════════════════════════
+// BRANCH MODAL
+// ══════════════════════════════════════════════════════
+function openAddBranch() {
+  editingBranchId = null;
+  document.getElementById('modalTitle').textContent = 'إضافة فرع';
+  document.getElementById('branchNameInput').value = '';
+  buildShiftsFields(['صباحي ☀️']);
+  document.getElementById('branchModal').classList.add('open');
+}
+
+function openEditBranch(id) {
+  editingBranchId = id;
+  const branch = getBranches().find(b => b.id === id);
+  document.getElementById('modalTitle').textContent = 'تعديل الفرع';
+  document.getElementById('branchNameInput').value = branch.name;
+  buildShiftsFields(branch.shifts);
+  document.getElementById('branchModal').classList.add('open');
+}
+
+function buildShiftsFields(shifts) {
+  const list = document.getElementById('shiftsList');
+  list.innerHTML = '';
+  shifts.forEach(s => addShiftField(s));
+}
+
+function addShiftField(value = '') {
+  const list = document.getElementById('shiftsList');
+  const div = document.createElement('div');
+  div.className = 'shift-row';
+  div.innerHTML = `
+    <input type="text" class="form-input shift-input" placeholder="اسم الشيفت (مثال: صباحي ☀️)" value="${value}">
+    <button class="remove-shift" onclick="this.parentElement.remove()">×</button>
+  `;
+  list.appendChild(div);
+}
+
+function closeModal() {
+  document.getElementById('branchModal').classList.remove('open');
+}
+
+function saveBranch() {
+  const name = document.getElementById('branchNameInput').value.trim();
+  if (!name) { alert('أدخل اسم الفرع'); return; }
+
+  const shiftInputs = document.querySelectorAll('.shift-input');
+  const shifts = Array.from(shiftInputs).map(i=>i.value.trim()).filter(Boolean);
+  if (shifts.length === 0) { alert('أضف شيفت واحد على الأقل'); return; }
+
+  const branches = getBranches();
+
+  if (editingBranchId) {
+    // Edit existing
+    const idx = branches.findIndex(b => b.id === editingBranchId);
+    if (idx >= 0) { branches[idx].name = name; branches[idx].shifts = shifts; }
+  } else {
+    // Add new — generate unique id
+    const id = 'branch_' + Date.now();
+    branches.push({ id, name, shifts });
+    currentBranch = id;
+  }
+
+  saveBranches(branches);
+  closeModal();
+  renderBranchesList();
+  showToast(editingBranchId ? 'تم التعديل ✓' : 'تمت الإضافة ✓');
+}
+
+// ══════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ══════════════════════════════════════════════════════
+// CLOSE MODAL ON OVERLAY CLICK
+// ══════════════════════════════════════════════════════
+document.getElementById('branchModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ══════════════════════════════════════════════════════
+// START
+// ══════════════════════════════════════════════════════
+// Wait for Firebase module to possibly initialize
+setTimeout(init, 300);
+</script>
+</body>
+</html>
