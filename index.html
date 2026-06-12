@@ -567,6 +567,179 @@ tr.row-weekend .day-name { color: #9575CD; }
 }
 .empty-state .emoji { font-size: 48px; }
 .empty-state p { margin-top: 10px; font-size: 14px; }
+
+/* ══════════════════════════════════════════
+   REPORT PAGE
+   ══════════════════════════════════════════ */
+#reportPage {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--cream2);
+  z-index: 400;
+  overflow-y: auto;
+}
+.report-topbar {
+  background: var(--brown-dark);
+  color: white;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.report-topbar h2 { font-size: 17px; font-weight: 700; }
+
+.report-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px;
+}
+.rpt-card {
+  background: white;
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  box-shadow: 0 1px 6px rgba(44,26,14,0.08);
+}
+.rpt-card .rval {
+  font-size: 22px; font-weight: 800;
+  color: var(--brown-dark);
+  direction: ltr;
+}
+.rpt-card .rval.red { color: var(--red); }
+.rpt-card .rval.yellow { color: #c27f00; }
+.rpt-card .rval.green { color: var(--green); }
+.rpt-card .rlbl { font-size: 11px; color: var(--brown-mid); margin-top: 3px; font-weight: 600; }
+
+.report-table-wrap { padding: 0 12px 12px; overflow-x: auto; }
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(44,26,14,0.1);
+  font-size: 12px;
+}
+.report-table thead tr { background: var(--brown-dark); color: white; }
+.report-table thead th {
+  padding: 9px 5px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.report-table tbody tr { border-bottom: 1px solid #f0e8de; }
+.report-table tbody tr:last-child { border-bottom: none; }
+.report-table tbody tr.rpt-day-start td { border-top: 2px solid #e0cdb8; }
+.report-table td {
+  padding: 7px 5px;
+  text-align: center;
+  vertical-align: middle;
+}
+.report-table tr.rpt-red { background: var(--red-bg); }
+.report-table tr.rpt-red td { color: #7f0000; }
+.report-table tr.rpt-yellow { background: var(--yellow-bg); }
+.report-table tr.rpt-yellow td { color: #4A3000; }
+.report-table tr.rpt-weekend { background: #F3F0FF; }
+.report-table tr.rpt-weekend .rpt-day-num { color: #5E35B1; }
+
+.rpt-day-cell { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.rpt-day-num { font-size: 13px; font-weight: 800; }
+.rpt-day-name { font-size: 9px; font-weight: 700; color: var(--brown-light); text-transform: uppercase; }
+
+.rpt-recv { font-size: 16px; }
+.rpt-amount { font-weight: 700; direction: ltr; }
+.rpt-diff-pos { color: var(--green); font-weight: 700; }
+.rpt-diff-neg { color: var(--red); font-weight: 700; }
+
+/* زر التقرير */
+.report-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  background: rgba(255,255,255,0.15);
+  border: 1.5px solid rgba(255,255,255,0.3);
+  color: white;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* زر PDF */
+.pdf-btn {
+  padding: 7px 14px;
+  background: var(--brown-light);
+  border: none;
+  color: var(--brown-dark);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════
+   PRINT / PDF — ألوان كاملة
+   ══════════════════════════════════════════ */
+@media print {
+  /* إخفاء كل شيء ما عدا التقرير */
+  body > * { display: none !important; }
+  #reportPage {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+  }
+  .report-topbar { display: none !important; }
+  .print-header { display: block !important; }
+
+  /* إجبار الطابعة على طباعة الألوان */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* بطاقات الملخص */
+  .report-summary { padding: 8px 8px 4px; gap: 6px; }
+  .rpt-card { box-shadow: none; border: 1px solid #e0cdb8; padding: 8px; }
+  .rpt-card .rval { font-size: 18px; }
+
+  /* الجدول */
+  .report-table-wrap { padding: 0 8px 8px; }
+  .report-table { font-size: 11px; box-shadow: none; }
+  .report-table thead tr { background: #2C1A0E !important; color: white !important; }
+  .report-table thead th { padding: 7px 4px; }
+  .report-table td { padding: 5px 4px; }
+
+  /* ألوان الصفوف */
+  tr.rpt-red     { background: #FFEBEE !important; }
+  tr.rpt-red td  { color: #7f0000 !important; }
+  tr.rpt-yellow  { background: #FFF9C4 !important; }
+  tr.rpt-yellow td { color: #4A3000 !important; }
+  tr.rpt-weekend { background: #F3F0FF !important; }
+
+  /* الـ shift badges */
+  .shift-badge { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .shift-s { background: #FFF9C4 !important; color: #7A5800 !important; }
+  .shift-e { background: #E8F5E9 !important; color: #1B5E20 !important; }
+  .shift-x { background: #EDE7F6 !important; color: #4A148C !important; }
+
+  /* الفروق */
+  .rpt-diff-pos { color: #2E7D32 !important; }
+  .rpt-diff-neg { color: #D32F2F !important; }
+
+  /* لا تقطع صفوف الجدول */
+  tbody tr { page-break-inside: avoid; }
+  table    { page-break-inside: auto; }
+}
 </style>
 </head>
 <body>
@@ -578,7 +751,10 @@ tr.row-weekend .day-name { color: #9575CD; }
       <h1>☕ سجل الكوفي</h1>
       <div class="subtitle" id="headerSubtitle">جاري التحميل...</div>
     </div>
-    <button class="settings-icon-btn" onclick="openSettings()">⚙️</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="report-btn" onclick="openReport()">📋 تقرير</button>
+      <button class="settings-icon-btn" onclick="openSettings()">⚙️</button>
+    </div>
   </div>
 
   <div class="sync-bar">
@@ -658,6 +834,26 @@ tr.row-weekend .day-name { color: #9575CD; }
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ══════ REPORT PAGE ══════ -->
+<div id="reportPage">
+  <div class="report-topbar">
+    <div>
+      <h2 id="reportTitle">📋 تقرير الشهر</h2>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="pdf-btn" onclick="exportPDF()">⬇️ PDF</button>
+      <button class="back-btn" onclick="closeReport()">✕</button>
+    </div>
+  </div>
+  <div class="report-summary" id="reportSummary"></div>
+  <!-- هيدر يظهر فقط عند الطباعة -->
+  <div class="print-header" style="display:none; padding:12px 12px 4px; text-align:center;">
+    <div style="font-size:20px; font-weight:800; color:#2C1A0E;" id="printTitle"></div>
+    <div style="font-size:11px; color:#6F3D0F; margin-top:2px;" id="printDate"></div>
+  </div>
+  <div class="report-table-wrap" id="reportTableWrap"></div>
+</div>
 
 <script>
 // ══════════════════════════════════════════════════════
@@ -852,35 +1048,9 @@ function renderTabs() {
 // ══════════════════════════════════════════════════════
 // RENDER MAIN TABLE
 // ══════════════════════════════════════════════════════
-async function renderMain() {
-  const branches = getBranches();
-  const branch = branches.find(b => b.id === currentBranch);
-  if (!branch) {
-    document.getElementById('tableWrap').innerHTML =
-      '<div class="empty-state"><div class="emoji">🏪</div><p>لا يوجد فروع — أضف فرع من الإعدادات ⚙️</p></div>';
-    document.getElementById('summaryBox').innerHTML = '';
-    return;
-  }
 
-  document.getElementById('monthLabel').textContent = getMonthLabel(currentMonth);
-  const monthKey = getMonthKey(currentMonth);
-
-  // ✅ FIXED: Merge Firebase + local data safely, never overwrite good data with empty
-  const fbData = await loadFromFirebase(currentBranch, monthKey);
-  const localData = loadMonthData(currentBranch, monthKey);
-
-  if (fbData && Object.keys(fbData).length > 0) {
-    // Merge: local changes on top of Firebase (local might have unsaved edits)
-    const merged = Object.assign({}, fbData, localData);
-    localStorage.setItem(localKey(currentBranch, monthKey), JSON.stringify(merged));
-    pageData = merged;
-    if (isFirebaseReady()) setSyncStatus('ok');
-  } else {
-    // Firebase empty or unavailable — use local
-    pageData = localData;
-  }
-
-  const days = getDaysInMonth(currentMonth);
+// ─ بناء الجدول بشكل sync من البيانات الموجودة
+function buildTable(branch, days) {
   let html = `<table>
     <thead><tr>
       <th>اليوم</th><th>الشيفت</th><th>الكاش</th><th>الفرق</th><th>الاستلام</th>
@@ -889,18 +1059,18 @@ async function renderMain() {
   const shiftColors = ['shift-s','shift-e','shift-x'];
 
   for (let day = 1; day <= days; day++) {
-    const dayName = getDayName(day, currentMonth);
-    const dow = getDayOfWeek(day, currentMonth);
-    const isWeekend = dow === 5 || dow === 6; // Fri or Sat
+    const dayName  = getDayName(day, currentMonth);
+    const dow      = getDayOfWeek(day, currentMonth);
+    const isWeekend = dow === 5 || dow === 6;
 
     branch.shifts.forEach((shift, si) => {
       const rk = `${day}_${si}`;
       const row = pageData[rk] || { cash:'', diff:'', recv:'none' };
-      const hasDiff = row.diff !== '' && row.diff !== '0' && row.diff !== 0;
-      const isNo = row.recv === 'no';
+      const hasDiff  = row.diff !== '' && row.diff !== '0' && row.diff !== 0;
+      const isNo     = row.recv === 'no';
       const rowClass = isNo ? 'row-red' : (hasDiff ? 'row-yellow' : (isWeekend ? 'row-weekend' : ''));
-      const isFirst = si === 0;
-      const recvIcon = row.recv==='yes' ? '✅' : row.recv==='no' ? '❌' : '○';
+      const isFirst  = si === 0;
+      const recvIcon  = row.recv==='yes' ? '✅' : row.recv==='no' ? '❌' : '○';
       const recvClass = row.recv==='yes' ? 'received' : row.recv==='no' ? 'not-received' : '';
       const sc = shiftColors[si % shiftColors.length];
 
@@ -922,6 +1092,44 @@ async function renderMain() {
   html += '</tbody></table>';
   document.getElementById('tableWrap').innerHTML = html;
   renderSummary(days, branch);
+}
+
+async function renderMain() {
+  const branches = getBranches();
+  const branch = branches.find(b => b.id === currentBranch);
+  if (!branch) {
+    document.getElementById('tableWrap').innerHTML =
+      '<div class="empty-state"><div class="emoji">🏪</div><p>لا يوجد فروع — أضف فرع من الإعدادات ⚙️</p></div>';
+    document.getElementById('summaryBox').innerHTML = '';
+    return;
+  }
+
+  document.getElementById('monthLabel').textContent = getMonthLabel(currentMonth);
+  const monthKey = getMonthKey(currentMonth);
+  const days = getDaysInMonth(currentMonth);
+
+  // ✅ INSTANT: عرض localStorage فوراً بدون انتظار
+  pageData = loadMonthData(currentBranch, monthKey);
+  buildTable(branch, days);
+
+  // ✅ BACKGROUND: Firebase في الخلفية بدون تجميد الصفحة
+  if (isFirebaseReady()) {
+    setSyncStatus('syncing');
+    loadFromFirebase(currentBranch, monthKey).then(fbData => {
+      if (fbData && Object.keys(fbData).length > 0) {
+        const merged = Object.assign({}, fbData, pageData);
+        const mergedStr = JSON.stringify(merged);
+        if (mergedStr !== JSON.stringify(pageData)) {
+          localStorage.setItem(localKey(currentBranch, monthKey), mergedStr);
+          pageData = merged;
+          buildTable(branch, days); // إعادة رسم لو في بيانات جديدة من Firebase
+        }
+        setSyncStatus('ok');
+      } else {
+        if (isFirebaseReady()) setSyncStatus('ok');
+      }
+    }).catch(() => setSyncStatus('err'));
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -1145,6 +1353,116 @@ function saveBranch() {
 }
 
 // ══════════════════════════════════════════════════════
+// REPORT PAGE
+// ══════════════════════════════════════════════════════
+function openReport() {
+  document.getElementById('reportPage').style.display = 'block';
+  buildReport();
+}
+
+function closeReport() {
+  document.getElementById('reportPage').style.display = 'none';
+}
+
+function exportPDF() {
+  // تحديث هيدر الطباعة
+  const title = document.getElementById('reportTitle').textContent;
+  document.getElementById('printTitle').textContent = title;
+  document.getElementById('printDate').textContent =
+    'تاريخ التصدير: ' + new Date().toLocaleDateString('ar-SA', { year:'numeric', month:'long', day:'numeric' });
+
+  // فتح نافذة الطباعة (اختر "حفظ كـ PDF" في المتصفح)
+  window.print();
+}
+
+function buildReport() {
+  const branches = getBranches();
+  const branch = branches.find(b => b.id === currentBranch);
+  if (!branch) return;
+
+  const days = getDaysInMonth(currentMonth);
+  const label = getMonthLabel(currentMonth);
+  document.getElementById('reportTitle').textContent = `📋 ${branch.name} — ${label}`;
+
+  // ─ حساب الملخص
+  let totalCash = 0, totalDiff = 0, countNo = 0, countYes = 0, countDiff = 0;
+  for (let d = 1; d <= days; d++) {
+    branch.shifts.forEach((_, si) => {
+      const row = pageData[`${d}_${si}`] || {};
+      if (row.cash) totalCash += parseFloat(row.cash) || 0;
+      if (row.diff && row.diff != 0) { totalDiff += parseFloat(row.diff) || 0; countDiff++; }
+      if (row.recv === 'no')  countNo++;
+      if (row.recv === 'yes') countYes++;
+    });
+  }
+
+  document.getElementById('reportSummary').innerHTML = `
+    <div class="rpt-card">
+      <div class="rval">${totalCash.toLocaleString('ar-SA')}</div>
+      <div class="rlbl">إجمالي الكاش (ريال)</div>
+    </div>
+    <div class="rpt-card">
+      <div class="rval ${totalDiff < 0 ? 'red' : 'yellow'}">${totalDiff > 0 ? '+' : ''}${totalDiff.toLocaleString('ar-SA')}</div>
+      <div class="rlbl">إجمالي الفروق (ريال)</div>
+    </div>
+    <div class="rpt-card">
+      <div class="rval green">${countYes}</div>
+      <div class="rlbl">ظروف مستلمة ✅</div>
+    </div>
+    <div class="rpt-card">
+      <div class="rval red">${countNo}</div>
+      <div class="rlbl">ظروف غير مستلمة ❌</div>
+    </div>`;
+
+  // ─ بناء الجدول
+  const shiftColors = ['shift-s','shift-e','shift-x'];
+  let html = `<table class="report-table">
+    <thead><tr>
+      <th>اليوم</th>
+      <th>الشيفت</th>
+      <th>الكاش</th>
+      <th>الفرق</th>
+      <th>الاستلام</th>
+    </tr></thead><tbody>`;
+
+  for (let day = 1; day <= days; day++) {
+    const dayName   = getDayName(day, currentMonth);
+    const dow       = getDayOfWeek(day, currentMonth);
+    const isWeekend = dow === 5 || dow === 6;
+
+    branch.shifts.forEach((shift, si) => {
+      const rk  = `${day}_${si}`;
+      const row = pageData[rk] || { cash:'', diff:'', recv:'none' };
+      const hasDiff = row.diff !== '' && row.diff !== '0' && row.diff !== 0;
+      const isNo    = row.recv === 'no';
+      const isFirst = si === 0;
+
+      const rowCls = isNo ? 'rpt-red' : (hasDiff ? 'rpt-yellow' : (isWeekend ? 'rpt-weekend' : ''));
+      const sc = shiftColors[si % shiftColors.length];
+
+      const cashVal = row.cash ? parseFloat(row.cash).toLocaleString('ar-SA') : '—';
+      const diffNum = row.diff && row.diff != 0 ? parseFloat(row.diff) : null;
+      const diffVal = diffNum !== null
+        ? `<span class="${diffNum >= 0 ? 'rpt-diff-pos' : 'rpt-diff-neg'}">${diffNum > 0 ? '+' : ''}${diffNum.toLocaleString('ar-SA')}</span>`
+        : '<span style="color:#bbb">—</span>';
+
+      const recvIcon = row.recv==='yes' ? '✅' : row.recv==='no' ? '❌' : '<span style="color:#bbb">○</span>';
+
+      html += `<tr class="${rowCls}${isFirst ? ' rpt-day-start' : ''}">
+        <td>${isFirst ? `<div class="rpt-day-cell"><div class="rpt-day-num">${day}</div><div class="rpt-day-name">${dayName}</div></div>` : ''}</td>
+        <td><span class="shift-badge ${sc}">${shift}</span></td>
+        <td class="rpt-amount">${cashVal}</td>
+        <td>${diffVal}</td>
+        <td class="rpt-recv">${recvIcon}</td>
+      </tr>`;
+    });
+  }
+
+  html += '</tbody></table>';
+  document.getElementById('reportTableWrap').innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════
 // TOAST
 // ══════════════════════════════════════════════════════
 let toastTimer = null;
@@ -1163,26 +1481,37 @@ document.getElementById('branchModal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
 
-// ✅ FIXED: Give Firebase more time to init (600ms instead of 300ms)
-// and retry if branches load fails
-async function init() {
-  // Try to load branches from Firebase
-  const fbBranches = await loadBranchesFromFirebase();
-  if (fbBranches && fbBranches.length > 0) {
-    localStorage.setItem('cf_branches', JSON.stringify(fbBranches));
-  }
-
+// ══════════════════════════════════════════════════════
+// INIT — فوري من localStorage، Firebase في الخلفية
+// ══════════════════════════════════════════════════════
+function init() {
   const branches = getBranches();
   if (!currentBranch || !branches.find(b => b.id === currentBranch)) {
     currentBranch = branches[0].id;
   }
-
   updateFirebaseStatusUI();
   renderTabs();
-  await renderMain();
+  renderMain(); // فوري — لا ينتظر Firebase
+
+  // الفروع من Firebase في الخلفية
+  if (isFirebaseReady()) {
+    loadBranchesFromFirebase().then(fbBranches => {
+      if (fbBranches && fbBranches.length > 0) {
+        const localStr = localStorage.getItem('cf_branches') || '';
+        if (localStr !== JSON.stringify(fbBranches)) {
+          localStorage.setItem('cf_branches', JSON.stringify(fbBranches));
+          if (!branches.find(b => b.id === currentBranch)) {
+            currentBranch = fbBranches[0].id;
+          }
+          renderTabs();
+        }
+      }
+    }).catch(() => {});
+  }
 }
 
-setTimeout(init, 600);
+// تشغيل فوري بدون تأخير
+init();
 </script>
 </body>
 </html>
