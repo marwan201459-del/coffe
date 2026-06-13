@@ -20,30 +20,26 @@
   import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  // ▼▼▼ ضع config الخاص بك هنا ▼▼▼
-  const firebaseConfig = {
-    apiKey: "REPLACE_API_KEY",
-    authDomain: "REPLACE_AUTH_DOMAIN",
-    projectId: "REPLACE_PROJECT_ID",
-    storageBucket: "REPLACE_STORAGE_BUCKET",
-    messagingSenderId: "REPLACE_SENDER_ID",
-    appId: "REPLACE_APP_ID"
+  window._firebase = { db: null, firebaseReady: false, doc, setDoc, getDoc, collection, getDocs, deleteDoc };
+  window._initFirebase = async function(cfg) {
+    try {
+      // تحقق إن الـ config حقيقي
+      if (!cfg || !cfg.projectId || cfg.projectId.includes('REPLACE')) {
+        console.warn('Firebase config غير مكتمل');
+        return false;
+      }
+      const app = initializeApp(cfg);
+      const db  = getFirestore(app);
+      // اختبار حقيقي للاتصال
+      await getDoc(doc(db, 'coffee', '__ping__'));
+      window._firebase.db = db;
+      window._firebase.firebaseReady = true;
+      return true;
+    } catch(e) {
+      console.error('Firebase error:', e.message);
+      return false;
+    }
   };
-  // ▲▲▲ ضع config الخاص بك هنا ▲▲▲
-
-  let db = null;
-  let firebaseReady = false;
-
-  try {
-    const app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    firebaseReady = true;
-  } catch(e) {
-    console.warn("Firebase not configured, using localStorage only.");
-  }
-
-  // Expose to global scope
-  window._firebase = { db, firebaseReady, doc, setDoc, getDoc, collection, getDocs, deleteDoc };
 </script>
 
 <style>
@@ -805,10 +801,42 @@ tr.row-weekend .day-name { color: #9575CD; }
       <div class="config-status" id="firebaseStatus">
         <span>○</span> <span>جاري الفحص...</span>
       </div>
-      <p>لتفعيل التخزين السحابي، افتح ملف HTML وابحث عن <strong>firebaseConfig</strong> وضع بيانات مشروعك من Firebase Console.</p>
-      <p style="margin-top:6px; font-size:12px; color:#888;">
-        console.firebase.google.com → مشروعك → Project Settings → Your Apps → Web App
+
+      <p style="margin-bottom:10px; font-size:12px; color:#666; line-height:1.6">
+        من Firebase Console → مشروعك → Project Settings → Your Apps → Web App → انسخ الـ config
       </p>
+
+      <div class="form-group" style="margin-bottom:8px">
+        <label class="form-label">API Key</label>
+        <input type="text" class="form-input" id="fb_apiKey" placeholder="AIzaSy...">
+      </div>
+      <div class="form-group" style="margin-bottom:8px">
+        <label class="form-label">Auth Domain</label>
+        <input type="text" class="form-input" id="fb_authDomain" placeholder="myapp.firebaseapp.com">
+      </div>
+      <div class="form-group" style="margin-bottom:8px">
+        <label class="form-label">Project ID</label>
+        <input type="text" class="form-input" id="fb_projectId" placeholder="my-coffee-app">
+      </div>
+      <div class="form-group" style="margin-bottom:8px">
+        <label class="form-label">Storage Bucket</label>
+        <input type="text" class="form-input" id="fb_storageBucket" placeholder="myapp.appspot.com">
+      </div>
+      <div class="form-group" style="margin-bottom:8px">
+        <label class="form-label">Messaging Sender ID</label>
+        <input type="text" class="form-input" id="fb_messagingSenderId" placeholder="123456789">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">App ID</label>
+        <input type="text" class="form-input" id="fb_appId" placeholder="1:123:web:abc...">
+      </div>
+
+      <button class="btn-save" style="width:100%; border-radius:10px" onclick="saveFirebaseConfig()">
+        🔥 حفظ وتوصيل Firebase
+      </button>
+      <button onclick="clearFirebaseConfig()" style="width:100%;margin-top:8px;padding:8px;background:none;border:1px solid #ddd;border-radius:10px;color:#999;font-size:12px;cursor:pointer">
+        مسح الـ Config
+      </button>
     </div>
   </div>
 </div>
@@ -1027,6 +1055,65 @@ function updateFirebaseStatusUI() {
   }
 }
 
+async function saveFirebaseConfig() {
+  const cfg = {
+    apiKey:            document.getElementById('fb_apiKey').value.trim(),
+    authDomain:        document.getElementById('fb_authDomain').value.trim(),
+    projectId:         document.getElementById('fb_projectId').value.trim(),
+    storageBucket:     document.getElementById('fb_storageBucket').value.trim(),
+    messagingSenderId: document.getElementById('fb_messagingSenderId').value.trim(),
+    appId:             document.getElementById('fb_appId').value.trim(),
+  };
+
+  if (!cfg.apiKey || !cfg.projectId) {
+    showToast('❌ أدخل API Key و Project ID على الأقل');
+    return;
+  }
+
+  showToast('🔄 جاري الاتصال...');
+  const ok = await tryInitFirebase(cfg);
+  if (ok) {
+    localStorage.setItem('cf_fbconfig', JSON.stringify(cfg));
+    showToast('✅ تم الاتصال بـ Firebase!');
+    updateFirebaseStatusUI();
+    // حمّل البيانات من السحاب فوراً
+    const monthKey = getMonthKey(currentMonth);
+    loadFromFirebase(currentBranch, monthKey).then(fbData => {
+      if (fbData && Object.keys(fbData).length > 0) {
+        const local = loadMonthData(currentBranch, monthKey);
+        const merged = Object.assign({}, fbData, local);
+        localStorage.setItem(localKey(currentBranch, monthKey), JSON.stringify(merged));
+        pageData = merged;
+        const b = getBranches().find(b => b.id === currentBranch);
+        if (b) buildTable(b, getDaysInMonth(currentMonth));
+        setSyncStatus('ok');
+      }
+    });
+  } else {
+    showToast('❌ فشل الاتصال — تحقق من الـ config');
+  }
+}
+
+function clearFirebaseConfig() {
+  if (!confirm('مسح الـ Config؟ الموقع سيحفظ محلياً فقط.')) return;
+  localStorage.removeItem('cf_fbconfig');
+  window._firebase.firebaseReady = false;
+  window._firebase.db = null;
+  updateFirebaseStatusUI();
+  showToast('تم مسح الـ Config');
+}
+
+function fillConfigFields() {
+  const cfg = getSavedConfig();
+  if (!cfg) return;
+  document.getElementById('fb_apiKey').value            = cfg.apiKey || '';
+  document.getElementById('fb_authDomain').value        = cfg.authDomain || '';
+  document.getElementById('fb_projectId').value         = cfg.projectId || '';
+  document.getElementById('fb_storageBucket').value     = cfg.storageBucket || '';
+  document.getElementById('fb_messagingSenderId').value = cfg.messagingSenderId || '';
+  document.getElementById('fb_appId').value             = cfg.appId || '';
+}
+
 // ══════════════════════════════════════════════════════
 // RENDER TABS
 // ══════════════════════════════════════════════════════
@@ -1077,11 +1164,11 @@ function buildTable(branch, days) {
       html += `<tr class="${rowClass}${isFirst ? ' day-start' : ''}" id="row_${day}_${si}">
         <td>${isFirst ? `<div class="day-label"><div class="day-num">${day}</div><div class="day-name">${dayName}</div></div>` : ''}</td>
         <td><span class="shift-badge ${sc}">${shift}</span></td>
-        <td><input class="cash-input" type="number" inputmode="numeric" placeholder="0"
+        <td><input class="cash-input" type="number" inputmode="decimal" placeholder="0"
           value="${row.cash}"
           onchange="updateRow(${day},${si},'cash',this.value)"
           onblur="updateRow(${day},${si},'cash',this.value)"></td>
-        <td><input class="diff-input" type="number" inputmode="numeric" placeholder="0"
+        <td><input class="diff-input" type="number" inputmode="decimal" placeholder="0"
           value="${row.diff}"
           onchange="updateRow(${day},${si},'diff',this.value)"
           onblur="updateRow(${day},${si},'diff',this.value)"></td>
@@ -1245,6 +1332,7 @@ function openSettings() {
   document.getElementById('settingsPage').style.display = 'block';
   renderBranchesList();
   updateFirebaseStatusUI();
+  fillConfigFields();
 }
 
 function closeSettings() {
@@ -1482,6 +1570,24 @@ document.getElementById('branchModal').addEventListener('click', function(e) {
 });
 
 // ══════════════════════════════════════════════════════
+// FIREBASE CONFIG — يخزن في localStorage
+// ══════════════════════════════════════════════════════
+function getSavedConfig() {
+  try { return JSON.parse(localStorage.getItem('cf_fbconfig') || 'null'); } catch { return null; }
+}
+
+async function tryInitFirebase(cfg) {
+  if (!window._initFirebase) {
+    // Firebase module لم يتحمل بعد — انتظر
+    await new Promise(r => setTimeout(r, 800));
+  }
+  if (!window._initFirebase) return false;
+  const ok = await window._initFirebase(cfg);
+  updateFirebaseStatusUI();
+  return ok;
+}
+
+// ══════════════════════════════════════════════════════
 // INIT — فوري من localStorage، Firebase في الخلفية
 // ══════════════════════════════════════════════════════
 function init() {
@@ -1491,26 +1597,38 @@ function init() {
   }
   updateFirebaseStatusUI();
   renderTabs();
-  renderMain(); // فوري — لا ينتظر Firebase
+  renderMain();
 
-  // الفروع من Firebase في الخلفية
-  if (isFirebaseReady()) {
-    loadBranchesFromFirebase().then(fbBranches => {
-      if (fbBranches && fbBranches.length > 0) {
-        const localStr = localStorage.getItem('cf_branches') || '';
-        if (localStr !== JSON.stringify(fbBranches)) {
-          localStorage.setItem('cf_branches', JSON.stringify(fbBranches));
-          if (!branches.find(b => b.id === currentBranch)) {
-            currentBranch = fbBranches[0].id;
+  // تشغيل Firebase من الـ config المحفوظ
+  const savedCfg = getSavedConfig();
+  if (savedCfg) {
+    tryInitFirebase(savedCfg).then(ok => {
+      if (ok) {
+        // بعد الاتصال الناجح — حمّل الفروع والبيانات من السحاب
+        loadBranchesFromFirebase().then(fbBranches => {
+          if (fbBranches && fbBranches.length > 0) {
+            localStorage.setItem('cf_branches', JSON.stringify(fbBranches));
+            renderTabs();
           }
-          renderTabs();
-        }
+        });
+        // حدّث البيانات الحالية من Firebase
+        const monthKey = getMonthKey(currentMonth);
+        loadFromFirebase(currentBranch, monthKey).then(fbData => {
+          if (fbData && Object.keys(fbData).length > 0) {
+            const local = loadMonthData(currentBranch, monthKey);
+            const merged = Object.assign({}, fbData, local);
+            localStorage.setItem(localKey(currentBranch, monthKey), JSON.stringify(merged));
+            pageData = merged;
+            const b = getBranches().find(b => b.id === currentBranch);
+            if (b) buildTable(b, getDaysInMonth(currentMonth));
+          }
+          setSyncStatus('ok');
+        });
       }
-    }).catch(() => {});
+    });
   }
 }
 
-// تشغيل فوري بدون تأخير
 init();
 </script>
 </body>
